@@ -12,7 +12,7 @@ forma è quella vera letta nel codice di `kokos-me-java-batch` e `kokos-sdk-java
 
 ## Le tre schede
 
-- **Percorso** — si sceglie l'evento (`OK;EVT;…`), l'oggetto applicativo (`NR;SP;…`), si
+- **Percorso** — si sceglie l'evento (`OK;EVT;…`), l'oggetto applicativo (`OR;VEN;…`), si
   scrive il JSON dei dati partendo dal template, si decide se pubblica una FUN o un
   servizio con SDK, e si sceglie exchange e priorità. Eseguito, l'evento attraversa i passi
   uno alla volta: payload, exchange, routing key, coda, thread `k21-observers`, script

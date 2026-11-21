@@ -42,13 +42,39 @@ console.log(`percorso: ${steps} passi, verdetto=${verdict}, ascoltatori partiti=
 await page.screenshot({ path: shot('percorso'), fullPage: true })
 
 // --- Percorso: oggetto sotto soglia
-await page.selectOption('[data-testid="object-select"]', 'NR;SP;20260418')
+await page.selectOption('[data-testid="object-select"]', 'SP;NOT;20260418')
 await page.click('[data-testid="run-button"]')
 await page.click('[data-testid="reveal-all"]')
 await page.waitForSelector('[data-testid="outcomes"]')
 const firedLow = await page.locator('[data-testid="outcomes"] [data-fired="yes"]').count()
 const verdictLow = await page.locator('[data-testid="verdict"]').getAttribute('data-tone')
 console.log(`sotto soglia: ascoltatori partiti=${firedLow}, verdetto=${verdictLow}`)
+
+// --- Percorso: le opzioni stanno sopra il risultato, non a destra
+const boxComandi = await page.locator('[data-testid="percorso"] > section').first().boundingBox()
+const boxAscoltatori = await page.locator('[data-testid="listeners"]').boundingBox()
+const boxRisultato = await page.locator('[data-testid="percorso-result"]').boundingBox()
+const sopra =
+  boxComandi.y + boxComandi.height <= boxAscoltatori.y + 1 &&
+  boxAscoltatori.y + boxAscoltatori.height <= boxRisultato.y + 1
+console.log(
+  `opzioni sopra: ${sopra} (comandi ${Math.round(boxComandi.y)}→${Math.round(boxComandi.y + boxComandi.height)}, ascoltatori ${Math.round(boxAscoltatori.y)}, risultato ${Math.round(boxRisultato.y)})`,
+)
+
+// --- Percorso: riga K21 aggiunta a mano
+const nelFile = await page.locator('[data-testid="listeners"] [data-origin="k21"]').count()
+await page.click('[data-testid="add-k21"]')
+await page.fill('[data-testid="draft-target"]', 'F(EXB;ZZ_999_01;PROVA)')
+await page.fill('[data-testid="draft-condition"]', '&event.object.IMPORTO > 100')
+await page.click('[data-testid="confirm-k21"]')
+const aggiunti = await page.locator('[data-testid="listeners"] [data-origin="aggiunto"]').count()
+await page.click('[data-testid="run-button"]')
+await page.click('[data-testid="reveal-all"]')
+await page.waitForSelector('[data-testid="outcomes"]')
+const partiti = await page.locator('[data-testid="outcomes"] [data-fired="yes"]').count()
+console.log(
+  `ascoltatori: ${nelFile} nel file + ${aggiunti} aggiunti → partiti ${partiti} (con la riga nuova)`,
+)
 
 // --- Percorso: evento senza script
 await page.selectOption('[data-testid="event-select"]', 'INVOICE_ARCHIVED')

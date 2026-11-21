@@ -149,10 +149,14 @@ export type RunInput = {
   exchangeCode: string
   user: string
   captureOn: boolean
+  /** ascoltatori aggiunti a mano in questa sessione: una riga K21 o una cattura */
+  extraObservers?: Observer[]
+  extraCaptures?: CaptureDef[]
   now?: Date
 }
 
-/** `NR;SP;20260417` → terna Smeup; nel payload la classe è tipo+parametro. */
+/** `SP;NOT;20260417` → terna Smeup: classe(2); sottoclasse(3); codice(>=6).
+ *  Nel payload la `class` è classe+sottoclasse, l'`object` è il codice. */
 export function splitKey(key: string): { t: string; p: string; k: string } {
   const [t = '', p = '', k = ''] = key.split(';')
   return { t, p, k }
@@ -249,6 +253,27 @@ export function evaluateCondition(expression: string): boolean | null {
   }
 }
 
+/** Le righe che una sezione aggiunta a mano produrrebbe nello script. */
+export function observerToScriptLines(obs: Observer): string {
+  switch (obs.type) {
+    case 'PGM':
+      return `::SEZ Type="PGM"\n::OBS Pgm="${obs.target}"${obs.condition ? `\n::CND Esp="${obs.condition}"` : ''}`
+    case 'LOG':
+      return '::SEZ Type="LOG"\n::OBS LogLevel="INFO"'
+    case 'AUDIT':
+      return '::SEZ Type="AUDIT"'
+    case 'K11':
+      return `::SEZ Type="K11"\n::OBS SubA38="${obs.target}"${obs.condition ? `\n::CND Esp="${obs.condition}"` : ''}`
+    default:
+      return `::SEZ Type="FUN"\n::OBS Fun="${obs.target}"${obs.condition ? `\n::CND Esp="${obs.condition}"` : ''}`
+  }
+}
+
+/** La coda effimera di una cattura registrata a runtime. */
+export function captureQueueName(id: string): string {
+  return `EVT_CAP_${id.replace(/^E2E-/, '').slice(0, 8)}`
+}
+
 function parseData(raw: string): { value: string; error: string | null } {
   const trimmed = raw.trim()
   if (!trimmed) return { value: '', error: null }
@@ -284,6 +309,10 @@ export function buildPayload(
  */
 export function runScenario(input: RunInput, catalog: Catalog): RunResult {
   const { event, object, priority, exchangeCode } = input
+  const observers = [...event.observers, ...(input.extraObservers ?? [])]
+  const captures = [...event.captures, ...(input.extraCaptures ?? [])]
+  // uno script assente che riceve una riga aggiunta non è più assente
+  const hasScript = !event.missingScript || observers.length > 0
   const now = input.now ?? new Date()
   const timestampMs = now.getTime()
   const exchange = catalog.exchanges.find((e) => e.code === exchangeCode) ?? null
@@ -403,7 +432,7 @@ export function runScenario(input: RunInput, catalog: Catalog): RunResult {
     ],
   })
 
-  if (event.missingScript) {
+  if (!hasScript) {
     steps.push({
       id: 'script',
       n: 6,
@@ -454,14 +483,17 @@ export function runScenario(input: RunInput, catalog: Catalog): RunResult {
     lines: [
       { label: 'file', value: `${event.script.library}/${event.id}.k21` },
       { label: 'sezioni', value: String(event.observers.length) },
-      ...(event.captures.length
-        ? [{ label: 'in più', value: `${event.captures.length} cattura effimera registrata a runtime (non nello script)` }]
+      ...(observers.length > event.observers.length
+        ? [{ label: 'aggiunte', value: `${observers.length - event.observers.length} sezione/i da questa sessione` }]
+        : []),
+      ...(captures.length
+        ? [{ label: 'in più', value: `${captures.length} ascoltarore/i in process registrato/i a runtime (non nello script)` }]
         : []),
     ],
-    code: event.script.text.join('\n'),
+    code: event.script.text.length ? event.script.text.join('\n') : observers.map(observerToScriptLines).join('\n'),
   })
 
-  const outcomes: ObserverOutcome[] = event.observers.map((obs) => {
+  const outcomes: ObserverOutcome[] = observers.map((obs) => {
     if (!obs.condition) {
       return {
         id: obs.id,
@@ -552,7 +584,7 @@ export function runScenario(input: RunInput, catalog: Catalog): RunResult {
     ],
   })
 
-  const capturesNote = input.captureOn && event.captures.length > 0 ? event.captures[0] : null
+  const capturesNote = input.captureOn && captures.length > 0 ? captures[0] : null
   if (capturesNote) {
     steps.push({
       id: 'capture',

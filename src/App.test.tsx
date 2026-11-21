@@ -47,7 +47,7 @@ describe('Percorso', () => {
   it('mostra l oggetto applicativo come terna Smeup', async () => {
     await caricaApp()
     const select = screen.getByTestId('object-select') as HTMLSelectElement
-    expect(Array.from(select.options).map((o) => o.value)).toContain('NR;SP;20260417')
+    expect(Array.from(select.options).map((o) => o.value)).toContain('SP;NOT;20260417')
   })
 
   it('esegue la catena e mostra i passi e gli ascoltatori', async () => {
@@ -67,7 +67,7 @@ describe('Percorso', () => {
 
   it('cambiando oggetto la condizione cambia esito senza errori', async () => {
     const user = await caricaApp()
-    await user.selectOptions(screen.getByTestId('object-select'), 'NR;SP;20260418')
+    await user.selectOptions(screen.getByTestId('object-select'), 'SP;NOT;20260418')
     await user.click(screen.getByTestId('run-button'))
     await user.click(screen.getByTestId('reveal-all'))
     expect(screen.getByTestId('outcome-EXPENSE_REPORT_SUBMITTED#1')).toHaveAttribute(
@@ -83,6 +83,60 @@ describe('Percorso', () => {
     await user.click(screen.getByTestId('run-button'))
     await user.click(screen.getByTestId('reveal-all'))
     expect(screen.getByTestId('step-producer')).toHaveTextContent('KS_194_02A')
+  })
+})
+
+
+describe('Ascoltatori aggiunti a mano', () => {
+  it('aggiunge una riga K21 e la fa partire con l evento', async () => {
+    const user = await caricaApp()
+    await user.click(screen.getByTestId('add-k21'))
+    await user.clear(screen.getByTestId('draft-target'))
+    await user.type(screen.getByTestId('draft-target'), 'F(EXB;ZZ_999_01;PROVA)')
+    await user.type(screen.getByTestId('draft-condition'), '&event.object.IMPORTO > 1000')
+    await user.click(screen.getByTestId('confirm-k21'))
+
+    const card = await screen.findByTestId('listener-EXPENSE_REPORT_SUBMITTED#a4')
+    expect(card).toHaveAttribute('data-origin', 'aggiunto')
+    expect(card).toHaveTextContent('F(EXB;ZZ_999_01;PROVA)')
+
+    await user.click(screen.getByTestId('run-button'))
+    await user.click(screen.getByTestId('reveal-all'))
+    const outcome = screen.getByTestId('outcome-EXPENSE_REPORT_SUBMITTED#a4')
+    expect(outcome).toHaveAttribute('data-fired', 'yes')
+    expect(outcome).toHaveTextContent('1240 > 1000')
+  })
+
+  it('aggiunge un ascoltatore in process e accende il passo della cattura', async () => {
+    const user = await caricaApp()
+    await user.click(screen.getByTestId('add-process'))
+    await user.click(screen.getByTestId('confirm-process'))
+    expect(screen.getByTestId('listener-E2E-prova1')).toHaveAttribute('data-origin', 'process')
+    await user.click(screen.getByTestId('run-button'))
+    await user.click(screen.getByTestId('reveal-all'))
+    expect(screen.getByTestId('step-capture')).toBeInTheDocument()
+  })
+
+  it('una riga aggiunta salva un evento che non aveva script', async () => {
+    const user = await caricaApp()
+    await user.selectOptions(screen.getByTestId('event-select'), 'INVOICE_ARCHIVED')
+    await user.click(screen.getByTestId('run-button'))
+    await user.click(screen.getByTestId('reveal-all'))
+    expect(screen.getByTestId('verdict')).toHaveAttribute('data-tone', 'error')
+
+    await user.click(screen.getByTestId('add-k21'))
+    await user.click(screen.getByTestId('confirm-k21'))
+    await user.click(screen.getByTestId('run-button'))
+    await user.click(screen.getByTestId('reveal-all'))
+    expect(screen.getByTestId('verdict')).toHaveAttribute('data-tone', 'ok')
+  })
+
+  it('toglie un ascoltatore aggiunto', async () => {
+    const user = await caricaApp()
+    await user.click(screen.getByTestId('add-process'))
+    await user.click(screen.getByTestId('confirm-process'))
+    await user.click(screen.getByTestId('remove-E2E-prova1'))
+    expect(screen.queryByTestId('listener-E2E-prova1')).not.toBeInTheDocument()
   })
 })
 

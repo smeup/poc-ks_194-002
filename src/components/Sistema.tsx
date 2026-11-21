@@ -212,46 +212,46 @@ export default function Sistema({ catalog }: Props) {
   const selectedNode = selected ? nodeById(selected) : null
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[340px_1fr]" data-testid="sistema">
-      <aside className="space-y-2">
-        <p className="text-[12px] leading-relaxed text-tenue">
-          Ogni voce accende un canale vero: la mappa mostra solo i nodi che quel canale tocca,
-          gli altri restano in sottofondo.
-        </p>
-        {CHANNELS.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            data-testid={`channel-${c.id}`}
-            data-state={channelId === c.id ? 'active' : 'idle'}
-            onClick={() => setChannelId(c.id)}
-            className={
-              'w-full rounded-xl border px-3 py-2 text-left transition-colors ' +
-              (channelId === c.id
-                ? 'border-brand-primary bg-brand-primary-100/60'
-                : 'border-inchiostro/10 bg-carta hover:border-brand-primary/30')
-            }
-          >
-            <p className="text-[13px] font-semibold text-inchiostro">{c.label}</p>
-            <p className="mt-0.5 text-[11.5px] leading-snug text-tenue">{c.detail}</p>
-          </button>
-        ))}
-        <div className="flex items-center justify-between rounded-xl border border-inchiostro/10 bg-carta px-3 py-2">
-          <span className="text-[12px] text-tenue">animazione</span>
+    <div className="space-y-3" data-testid="sistema">
+      <section className="rounded-2xl border border-inchiostro/10 bg-carta p-3 shadow-carta">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-tenue">
+            Canale
+          </span>
+          <div className="flex flex-wrap gap-1.5">
+            {CHANNELS.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                data-testid={`channel-${c.id}`}
+                data-state={channelId === c.id ? 'active' : 'idle'}
+                onClick={() => setChannelId(c.id)}
+                className={
+                  'rounded-lg border px-2.5 py-1 text-[12px] font-semibold transition-colors ' +
+                  (channelId === c.id
+                    ? 'border-brand-primary bg-brand-primary text-white'
+                    : 'border-inchiostro/15 bg-fondo text-inchiostro hover:border-brand-primary/40')
+                }
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
           <button
             type="button"
             data-testid="toggle-animation"
             data-state={running ? 'on' : 'off'}
             onClick={() => setRunning((r) => !r)}
             className={
-              'rounded-full px-2.5 py-1 text-[11px] font-semibold ' +
+              'ml-auto rounded-full px-2.5 py-1 text-[11px] font-semibold ' +
               (running ? 'bg-brand-success text-white' : 'bg-inchiostro/10 text-tenue')
             }
           >
-            {running ? 'accesa' : 'spenta'}
+            animazione {running ? 'accesa' : 'spenta'}
           </button>
         </div>
-      </aside>
+        <p className="mt-2 text-[12px] leading-relaxed text-tenue">{channel.detail}</p>
+      </section>
 
       <section className="min-w-0 space-y-3">
         <p className="text-[11px] text-tenue sm:hidden">la mappa si scorre in orizzontale →</p>

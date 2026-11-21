@@ -11,6 +11,11 @@ const page = await browser.newPage({ viewport: { width: 1360, height: 940 }, dev
 await page.goto(base, { waitUntil: 'load' })
 await page.waitForSelector('[data-testid="event-select"]')
 await page.selectOption('[data-testid="event-select"]', 'SALES_ORDER_CONFIRMED')
+// una riga aggiunta a mano, per far vedere il pannello degli ascoltatori
+await page.click('[data-testid="add-k21"]')
+await page.fill('[data-testid="draft-target"]', 'F(EXB;VT_900_01;NOTIFY.MGR)')
+await page.fill('[data-testid="draft-condition"]', '&event.object.IMPORTO > 5000')
+await page.click('[data-testid="confirm-k21"]')
 await page.click('[data-testid="run-button"]')
 await page.click('[data-testid="reveal-all"]')
 await page.waitForSelector('[data-testid="outcomes"]')
@@ -19,7 +24,7 @@ await page.screenshot({ path: '/tmp/poc194-1-percorso.png' })
 
 // le due soglie della richiesta di acquisto: sopra 100.000 partono tutte e tre
 await page.selectOption('[data-testid="event-select"]', 'PURCHASE_REQUEST_CREATED')
-await page.selectOption('[data-testid="object-select"]', 'CA;RI;000124')
+await page.selectOption('[data-testid="object-select"]', 'AC;RDA;000124')
 await page.click('[data-testid="run-button"]')
 await page.click('[data-testid="reveal-all"]')
 await page.waitForSelector('[data-testid="outcomes"]')

@@ -20,7 +20,7 @@
       ],
       "open": {
         "eventId": "EXPENSE_REPORT_SUBMITTED",
-        "objectKey": "NR;SP;20260417"
+        "objectKey": "SP;NOT;20260417"
       }
     },
     {
@@ -42,7 +42,7 @@
       ],
       "open": {
         "eventId": "EXPENSE_REPORT_SUBMITTED",
-        "objectKey": "NR;SP;20260418"
+        "objectKey": "SP;NOT;20260418"
       }
     },
     {
@@ -65,7 +65,7 @@
       ],
       "open": {
         "eventId": "PLATE_RECOGNIZED",
-        "objectKey": "AU;TG;AB123CD"
+        "objectKey": "AU;TAR;AB123CD"
       }
     },
     {
@@ -87,7 +87,7 @@
       ],
       "open": {
         "eventId": "PLATE_RECOGNIZED",
-        "objectKey": "AU;TG;AB123CD"
+        "objectKey": "AU;TAR;AB123CD"
       }
     },
     {
@@ -109,7 +109,7 @@
       ],
       "open": {
         "eventId": "PASSIVE_INVOICE_RECEIVED",
-        "objectKey": "FA;PA;202600187"
+        "objectKey": "FA;PAS;202600187"
       }
     },
     {
@@ -131,7 +131,7 @@
       ],
       "open": {
         "eventId": "PLATE_RECOGNIZED",
-        "objectKey": "AU;TG;XY987ZW"
+        "objectKey": "AU;TAR;XY987ZW"
       }
     },
     {
@@ -153,7 +153,7 @@
       ],
       "open": {
         "eventId": "INVOICE_ARCHIVED",
-        "objectKey": "FA;PA;202600187"
+        "objectKey": "FA;PAS;202600187"
       }
     },
     {
@@ -176,7 +176,7 @@
       ],
       "open": {
         "eventId": "PRODUCTION_ORDER_RELEASED",
-        "objectKey": "PR;OP;00078"
+        "objectKey": "PR;OPR;000078"
       }
     },
     {
@@ -199,7 +199,7 @@
       ],
       "open": {
         "eventId": "TICKET_OPENED",
-        "objectKey": "AS;TK;0004512"
+        "objectKey": "AS;TIC;0004512"
       }
     }
   ]

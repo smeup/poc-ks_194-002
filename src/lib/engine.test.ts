@@ -5,6 +5,8 @@ import {
   evaluateCondition,
   queueFor,
   routingKeyFor,
+  observerToScriptLines,
+  captureQueueName,
   runScenario,
   splitKey,
   substituteCondition,
@@ -46,7 +48,7 @@ function run(event: EventDef, objectIndex = 0, priority = event.producer.priorit
 
 describe('terna e routing key', () => {
   it('spezza la terna Smeup in tipo, parametro e chiave', () => {
-    expect(splitKey('NR;SP;20260417')).toEqual({ t: 'NR', p: 'SP', k: '20260417' })
+    expect(splitKey('SP;NOT;20260417')).toEqual({ t: 'SP', p: 'NOT', k: '20260417' })
   })
 
   it('manda a priorita 0 la routing key normale, sopra la coda alta', () => {
@@ -61,6 +63,26 @@ describe('terna e routing key', () => {
   it('sostituisce <TYPE> sugli exchange non business', () => {
     const evt = catalog.exchanges.find((e) => e.code === 'evt')!
     expect(routingKeyFor(evt, 'PLATE_RECOGNIZED', 0)).toBe('PLATE_RECOGNIZED.in')
+  })
+})
+
+describe('righe di script generate', () => {
+  it('una sezione FUN aggiunta produce SEZ, OBS e CND', () => {
+    expect(observerToScriptLines({
+      id: 'X#a1', type: 'FUN', target: 'F(EXB;ZZ_1_01;P)', condition: '&event.object.IMPORTO > 10',
+      goal: '', note: '',
+    })).toBe('::SEZ Type="FUN"\n::OBS Fun="F(EXB;ZZ_1_01;P)"\n::CND Esp="&event.object.IMPORTO > 10"')
+  })
+
+  it('una sezione LOG non porta ne target ne condizione', () => {
+    expect(observerToScriptLines({
+      id: 'X#a2', type: 'LOG', target: 'log', condition: null, goal: '', note: '',
+    })).toBe('::SEZ Type="LOG"\n::OBS LogLevel="INFO"')
+  })
+
+  it('la coda di una cattura aggiunta prende le prime otto cifre', () => {
+    expect(captureQueueName('E2E-7c41a902')).toBe('EVT_CAP_7c41a902')
+    expect(captureQueueName('E2E-prova1')).toBe('EVT_CAP_prova1')
   })
 })
 
@@ -99,7 +121,7 @@ describe('condizioni ::CND', () => {
       'MSANFILIPPO',
       1000,
     )
-    expect(text).toBe('NRSP/20260417/MSANFILIPPO/1000')
+    expect(text).toBe('SPNOT/20260417/MSANFILIPPO/1000')
   })
 })
 
@@ -148,7 +170,7 @@ describe('il percorso di un evento', () => {
 
   it('mette class e object dell oggetto applicativo nel payload', () => {
     const result = run(invoice, 0)
-    expect(result.payload.class).toBe('FAPA')
+    expect(result.payload.class).toBe('FAPAS')
     expect(result.payload.object).toBe('202600187')
     expect(result.payload.event_type).toBe('PASSIVE_INVOICE_RECEIVED')
   })
@@ -282,12 +304,25 @@ describe('i nuovi eventi ERP', () => {
     expect(assign.resolvedCondition).toBe('1 >= 2')
   })
 
-  it('ogni evento ha almeno un oggetto con una terna completa', () => {
+  it('le terne sono classe(2);sottoclasse(3);codice(almeno 6)', () => {
     for (const e of catalog.events) {
       expect(e.objects.length).toBeGreaterThan(0)
       for (const o of e.objects) {
-        expect(o.key.split(';')).toHaveLength(3)
-        expect(o.key.replace(/;/g, '')).toBe(o.className + o.object)
+        const [t, p, k] = o.key.split(';')
+        expect(t, o.key).toHaveLength(2)
+        expect(p, o.key).toHaveLength(3)
+        expect(k.length, o.key).toBeGreaterThanOrEqual(6)
+        expect(o.className).toBe(t + p)
+        expect(o.object).toBe(k)
+      }
+    }
+  })
+
+  it('nessuna condizione cita piu le vecchie classi a quattro caratteri', () => {
+    for (const e of catalog.events) {
+      for (const line of e.script.text) {
+        const match = line.match(/1\(CO;([A-Z]+);/)
+        if (match) expect(match[1].length, line).toBe(5)
       }
     }
   })
