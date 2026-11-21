@@ -14,8 +14,14 @@
         "non c’è un esito unico dell’evento: nessuno sa se le tre FUN sono andate bene",
         "non esiste un «evento fallito»: esiste un messaggio ackato e una FUN che può essere andata male per conto suo"
       ],
-      "ok": ["OKEVT", "OKOBS"],
-      "open": { "eventId": "EXPENSE_REPORT_SUBMITTED", "objectKey": "NR;SP;20260417" }
+      "ok": [
+        "OKEVT",
+        "OKOBS"
+      ],
+      "open": {
+        "eventId": "EXPENSE_REPORT_SUBMITTED",
+        "objectKey": "NR;SP;20260417"
+      }
     },
     {
       "id": "condizione-falsa",
@@ -31,8 +37,13 @@
         "non c’è NACK, non c’è requeue, non c’è ritentativo: la condizione falsa è un esito definitivo",
         "non compare nessun errore da nessuna parte: chi aspettava l’approvazione deve guardare la condizione, non i log"
       ],
-      "ok": ["OKOBS"],
-      "open": { "eventId": "EXPENSE_REPORT_SUBMITTED", "objectKey": "NR;SP;20260418" }
+      "ok": [
+        "OKOBS"
+      ],
+      "open": {
+        "eventId": "EXPENSE_REPORT_SUBMITTED",
+        "objectKey": "NR;SP;20260418"
+      }
     },
     {
       "id": "fun-o-sdk",
@@ -48,8 +59,14 @@
         "un evento pubblicato da SDK non passa dal registry: nessuno gli dice quale micro esecutore lo servirà, decide l’exchange",
         "PUB.JSN non accetta un utente nel JSON: lo sovrascrive sempre con l’identità autenticata"
       ],
-      "ok": ["OKEVT", "OKEXC"],
-      "open": { "eventId": "PLATE_RECOGNIZED", "objectKey": "AU;TG;AB123CD" }
+      "ok": [
+        "OKEVT",
+        "OKEXC"
+      ],
+      "open": {
+        "eventId": "PLATE_RECOGNIZED",
+        "objectKey": "AU;TG;AB123CD"
+      }
     },
     {
       "id": "in-process",
@@ -64,8 +81,14 @@
         "non è una registrazione: non scrive niente su disco e non finisce in un repository versionato",
         "non sopravvive al riavvio del processo, e su un ambiente con più repliche vale solo dove la chiamata è arrivata"
       ],
-      "ok": ["OKOBS", "OKQUE"],
-      "open": { "eventId": "PLATE_RECOGNIZED", "objectKey": "AU;TG;AB123CD" }
+      "ok": [
+        "OKOBS",
+        "OKQUE"
+      ],
+      "open": {
+        "eventId": "PLATE_RECOGNIZED",
+        "objectKey": "AU;TG;AB123CD"
+      }
     },
     {
       "id": "k21-e-programmi",
@@ -81,8 +104,13 @@
         "il programma RPG non sa che esiste un evento: riceve una chiamata come tutte le altre",
         "nessuna di queste forme di ascoltatore viene creata o modificata a runtime: lo script è un file versionato"
       ],
-      "ok": ["OKOBS"],
-      "open": { "eventId": "PASSIVE_INVOICE_RECEIVED", "objectKey": "FA;PA;202600187" }
+      "ok": [
+        "OKOBS"
+      ],
+      "open": {
+        "eventId": "PASSIVE_INVOICE_RECEIVED",
+        "objectKey": "FA;PA;202600187"
+      }
     },
     {
       "id": "code-diverse",
@@ -97,8 +125,14 @@
         "chi consuma la coda normale non vede gli eventi ad alta priorità",
         "l’exchange non conosce gli ascoltatori: una routing key senza binding non dà errore, il messaggio semplicemente non arriva a nessuno"
       ],
-      "ok": ["OKQUE", "OKEXC"],
-      "open": { "eventId": "PLATE_RECOGNIZED", "objectKey": "AU;TG;XY987ZW" }
+      "ok": [
+        "OKQUE",
+        "OKEXC"
+      ],
+      "open": {
+        "eventId": "PLATE_RECOGNIZED",
+        "objectKey": "AU;TG;XY987ZW"
+      }
     },
     {
       "id": "senza-script",
@@ -113,8 +147,60 @@
         "il pubblicatore non se ne accorge: la publish era già riuscita, il guasto è a valle",
         "non c’è una dead letter queue dichiarata in questo percorso: il messaggio non si ritrova da nessuna parte"
       ],
-      "ok": ["OKEVT", "OKQUE"],
-      "open": { "eventId": "INVOICE_ARCHIVED", "objectKey": "FA;PA;202600187" }
+      "ok": [
+        "OKEVT",
+        "OKQUE"
+      ],
+      "open": {
+        "eventId": "INVOICE_ARCHIVED",
+        "objectKey": "FA;PA;202600187"
+      }
+    },
+    {
+      "id": "a37-k11",
+      "title": "Un ascoltatore che parla la lingua di a37",
+      "lead": "Nell'ordine di produzione convivono una FUN moderna e un ascoltatore K11: la sezione ::SEZ Type=\"K11\" con SubA38 e VarA38 manda il messaggio al terminale di reparto, e il consumatore che lo serve non è me-java-batch ma a37-service.",
+      "happens": [
+        "::OBS SubA38= dichiara la subroutine a37, ::OBS VarA38= le variabili da passare (qui l'oggetto dell'evento)",
+        "il gestore costruisce la FUN di osservazione K11 e la chiama in asincrono, come per ogni altra sezione",
+        "l'instradamento verso a37-service lo decide il registry, non il repository degli eventi",
+        "l'evento ha priorita 5: viaggia sulla coda alta perché la linea deve partire subito"
+      ],
+      "notHappens": [
+        "il repository degli eventi non fa fan-out sui micro esecutori: quella è la mappa del dispatcher",
+        "se a37-service non risponde, l'evento è comunque ackato: il terminale non riceve nulla e nessuno lo segnala al pubblicatore"
+      ],
+      "ok": [
+        "OKOBS",
+        "OKQUE"
+      ],
+      "open": {
+        "eventId": "PRODUCTION_ORDER_RELEASED",
+        "objectKey": "PR;OP;00078"
+      }
+    },
+    {
+      "id": "exchange-evt",
+      "title": "Un canale diverso: l'evento applicativo",
+      "lead": "Il ticket di assistenza non passa dall'exchange di business: il portale pubblica su smeupEvtExchange con la routing key TICKET_OPENED.in, e i consumatori sono i listener registrati dall'SDK, non il motore degli script.",
+      "happens": [
+        "la routing key è <TYPE>.in, senza il ramo business.event.high",
+        "chi consuma è un EventConsumer registrato dall'SDK: lo script SCP_K21 non entra in gioco se il listener non lo prevede",
+        "la cattura REG.CAP può osservare anche questo exchange, perché la cattura è per exchange e non per tipo"
+      ],
+      "notHappens": [
+        "la priorità non sposta nulla: sull'exchange evt non esiste una coda alta",
+        "la console KS_194_02 mostra il canale e le code, non i listener dell'SDK, che non sono registrati in OKOBS"
+      ],
+      "ok": [
+        "OKEXC",
+        "OKQUE",
+        "OKOBS"
+      ],
+      "open": {
+        "eventId": "TICKET_OPENED",
+        "objectKey": "AS;TK;0004512"
+      }
     }
   ]
 }

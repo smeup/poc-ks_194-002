@@ -5,9 +5,10 @@ pubblica, su quale exchange finisce, chi lo consuma, quale script lo trasforma i
 chiamata, e cosa legittimamente **non** succede.
 
 Solo frontend: React + Vite + TypeScript, dati in `src/json/`, nessun server, nessun broker.
-Gli eventi e gli oggetti applicativi sono inventati (tre casi d'uso: nota spese, cancello
-automatico, fattura passiva) ma la forma è quella vera letta nel codice di
-`kokos-me-java-batch` e `kokos-sdk-java-rpgle`.
+Gli eventi e gli oggetti applicativi sono inventati — dodici storie in undici aree di un ERP:
+nota spese, cancello automatico, fattura passiva, ordine di vendita, richiesta di acquisto,
+sotto scorta, spedizione, incasso, ordine di produzione, ticket di assistenza, assunzione — ma la
+forma è quella vera letta nel codice di `kokos-me-java-batch` e `kokos-sdk-java-rpgle`.
 
 ## Le tre schede
 

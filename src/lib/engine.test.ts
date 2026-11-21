@@ -20,6 +20,10 @@ const expense = catalog.events.find((e) => e.id === 'EXPENSE_REPORT_SUBMITTED') 
 const plate = catalog.events.find((e) => e.id === 'PLATE_RECOGNIZED') as EventDef
 const invoice = catalog.events.find((e) => e.id === 'PASSIVE_INVOICE_RECEIVED') as EventDef
 const archived = catalog.events.find((e) => e.id === 'INVOICE_ARCHIVED') as EventDef
+const purchase = catalog.events.find((e) => e.id === 'PURCHASE_REQUEST_CREATED') as EventDef
+const stock = catalog.events.find((e) => e.id === 'STOCK_BELOW_REORDER') as EventDef
+const production = catalog.events.find((e) => e.id === 'PRODUCTION_ORDER_RELEASED') as EventDef
+const ticket = catalog.events.find((e) => e.id === 'TICKET_OPENED') as EventDef
 
 const business = catalog.exchanges.find((e) => e.code === 'business')!
 const auth = catalog.exchanges.find((e) => e.code === 'auth')!
@@ -216,3 +220,90 @@ describe('il percorso di un evento', () => {
     expect(on.steps.some((s) => s.id === 'capture')).toBe(true)
   })
 })
+
+describe('i nuovi eventi ERP', () => {
+  it('il catalogo copre dodici eventi in undici aree', () => {
+    expect(catalog.events).toHaveLength(12)
+    expect(new Set(catalog.events.map((e) => e.useCase)).size).toBe(11)
+  })
+
+  it('sulla richiesta di acquisto scatta solo la prima soglia a 42.000', () => {
+    const result = run(purchase, 0)
+    const reparto = result.outcomes.find((o) => o.id === 'PURCHASE_REQUEST_CREATED#1')!
+    const direzione = result.outcomes.find((o) => o.id === 'PURCHASE_REQUEST_CREATED#2')!
+    expect(reparto.fired).toBe(true)
+    expect(reparto.resolvedCondition).toBe('42000 > 10000')
+    expect(direzione.fired).toBe(false)
+    expect(result.outcomes.filter((o) => o.fired)).toHaveLength(2)
+  })
+
+  it('sopra 100.000 partono tutte e tre le sezioni', () => {
+    const result = run(purchase, 1)
+    expect(result.outcomes.filter((o) => o.fired)).toHaveLength(3)
+  })
+
+  it('sotto scorta parte da SDK sulla coda alta e accende la cattura', () => {
+    const result = run(stock, 0)
+    expect(result.payload.source).toBe('stock-monitor')
+    expect(result.queue).toBe('BUSINESS_EVT_QUEUE_HIGH')
+    expect(result.steps.some((s) => s.id === 'capture')).toBe(true)
+  })
+
+  it('un articolo rientrato in scorta non fa partire la FUN', () => {
+    const result = run(stock, 1)
+    const fun = result.outcomes.find((o) => o.type === 'FUN')!
+    expect(fun.fired).toBe(false)
+    expect(fun.resolvedCondition).toBe('120 < 10')
+  })
+
+  it("l'ascoltatore K11 dell'ordine di produzione resta dichiarato come K11", () => {
+    const result = run(production, 0)
+    const k11 = result.outcomes.find((o) => o.type === 'K11')!
+    expect(k11.fired).toBe(true)
+    expect(k11.target).toContain('PRO.MSG')
+  })
+
+  it('il ticket viaggia su evt con la routing key del tipo', () => {
+    const result = run(ticket, 0)
+    expect(result.routingKey).toBe('TICKET_OPENED.in')
+    expect(result.exchange?.name).toBe('smeupEvtExchange')
+  })
+
+  it('la priorita del ticket non crea una coda alta che non esiste', () => {
+    const result = run(ticket, 0, 8)
+    expect(result.queue).toBe('SND<id>')
+    expect(result.routingKey).toBe('TICKET_OPENED.in')
+  })
+
+  it('il ticket di priorita 1 non viene assegnato', () => {
+    const result = run(ticket, 1)
+    const assign = result.outcomes.find((o) => o.type === 'FUN')!
+    expect(assign.fired).toBe(false)
+    expect(assign.resolvedCondition).toBe('1 >= 2')
+  })
+
+  it('ogni evento ha almeno un oggetto con una terna completa', () => {
+    for (const e of catalog.events) {
+      expect(e.objects.length).toBeGreaterThan(0)
+      for (const o of e.objects) {
+        expect(o.key.split(';')).toHaveLength(3)
+        expect(o.key.replace(/;/g, '')).toBe(o.className + o.object)
+      }
+    }
+  })
+
+  it('ogni condizione degli script si risolve su un attributo esplicito', () => {
+    for (const e of catalog.events) {
+      for (const obs of e.observers) {
+        if (!obs.condition) continue
+        const match = obs.condition.match(/&event\.object\.([A-Za-z0-9_]+)/)
+        expect(match, `${obs.id}: ${obs.condition}`).not.toBeNull()
+        const attr = match![1]
+        for (const o of e.objects) {
+          expect(Object.keys(o.attributes)).toContain(attr)
+        }
+      }
+    }
+  })
+})
+

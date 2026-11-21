@@ -45,6 +45,12 @@ export default function Percorso({
   const [runKey, setRunKey] = useState(0)
   const timers = useRef<number[]>([])
 
+  // il catalogo si raggruppa per area di business: dodici eventi in fila non si leggono
+  const aree = useMemo(
+    () => Array.from(new Set(catalog.events.map((e) => e.useCase))),
+    [catalog],
+  )
+
   const object: AppObject = useMemo(
     () => event.objects.find((o) => o.key === objectKey) ?? event.objects[0],
     [event, objectKey],
@@ -117,10 +123,16 @@ export default function Percorso({
             onChange={(e) => cambiaEvento(e.target.value)}
             className="mt-1 w-full rounded-lg border border-inchiostro/15 bg-fondo px-2 py-2 font-mono text-[12px]"
           >
-            {catalog.events.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.okevt}
-              </option>
+            {aree.map((area) => (
+              <optgroup key={area} label={area}>
+                {catalog.events
+                  .filter((e) => e.useCase === area)
+                  .map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.okevt}
+                    </option>
+                  ))}
+              </optgroup>
             ))}
           </select>
           <p className="mt-2 text-[12px] leading-snug text-tenue">
@@ -185,6 +197,11 @@ export default function Percorso({
             rows={8}
             className="mt-1 w-full resize-y rounded-lg border border-inchiostro/15 bg-fondo px-2 py-1.5 font-mono text-[11px] leading-snug"
           />
+          <p className="mt-1 text-[10.5px] leading-snug text-tenue">
+            I dati sono liberi: le condizioni dello script si risolvono sugli attributi
+            dell’<span className="font-semibold">oggetto applicativo</span> qui sopra
+            (<code className="font-mono">class.object.CAMPO</code>), non su questo JSON.
+          </p>
         </div>
 
         <div className="rounded-2xl border border-inchiostro/10 bg-carta p-4 shadow-carta">

@@ -21,7 +21,7 @@ export default function Esiti({ scenarios, onOpenInPercorso }: Props) {
   return (
     <div className="space-y-3" data-testid="esiti">
       <p className="max-w-3xl text-[13px] leading-relaxed text-tenue">
-        Sette esiti che nel percorso si vedono succedere. Qui sono raccontati: cosa fa il motore,
+        Nove esiti che nel percorso si vedono succedere. Qui sono raccontati: cosa fa il motore,
         cosa <span className="font-semibold text-inchiostro">non</span> fa, e quale oggetto{' '}
         <code className="font-mono text-[12px]">OK</code> lo racconta nella console. Ogni scheda si
         apre nel percorso con l’evento e l’oggetto già scelti.

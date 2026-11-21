@@ -32,6 +32,15 @@ La striscia in fondo alla pagina accende le entità che forniscono i numeri dell
 attiva: `OKEVT` (catalogo eventi), `OKOBS` (registro ascoltatori, stabili ed effimeri),
 `OKQUE` (code), `OKEXC` (exchange con chi pubblica e chi consuma).
 
+## Le dodici storie, in undici aree
+
+Vendite (ordine confermato, due soglie sull'importo) · Acquisti (richiesta di acquisto, approvazione
+reparto a 10.000 € e direzione a 100.000 €) · Magazzino (articolo sotto scorta, priorità alta e
+cattura per il cruscotto) · Logistica (spedizione partita con tracking) · Amministrazione (incasso
+con riconciliazione e partitario) · Produzione (ordine rilasciato, ascoltatore a37) · Assistenza
+(ticket su exchange evt) · Personale (nuova assunzione, provisioning utenze) · più i tre casi
+iniziali: nota spese, cancello automatico, fattura passiva.
+
 ## Cosa guardare per primo
 
 La nota spese con importo 1240 € fa partire tre ascoltatori; la stessa nota da 310 € ne fa
