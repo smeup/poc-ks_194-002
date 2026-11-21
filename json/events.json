@@ -205,7 +205,10 @@
         }
       ],
       "captures": [],
-      "exchangesAllowed": ["business", "evt"]
+      "exchangesAllowed": [
+        "business",
+        "evt"
+      ]
     },
     {
       "id": "PLATE_RECOGNIZED",
@@ -293,7 +296,10 @@
           "note": "cattura effimera REG.CAP: non durevole, auto-delete, TTL 600 s, vive nella memoria del processo che l'ha creata"
         }
       ],
-      "exchangesAllowed": ["business", "evt"]
+      "exchangesAllowed": [
+        "business",
+        "evt"
+      ]
     },
     {
       "id": "PASSIVE_INVOICE_RECEIVED",
@@ -373,7 +379,10 @@
         }
       ],
       "captures": [],
-      "exchangesAllowed": ["business", "evt"]
+      "exchangesAllowed": [
+        "business",
+        "evt"
+      ]
     },
     {
       "id": "INVOICE_ARCHIVED",
@@ -415,7 +424,689 @@
       "missingScript": true,
       "observers": [],
       "captures": [],
-      "exchangesAllowed": ["business"]
+      "exchangesAllowed": [
+        "business"
+      ]
+    },
+    {
+      "id": "SALES_ORDER_CONFIRMED",
+      "okevt": "OK;EVT;SALES_ORDER_CONFIRMED",
+      "useCase": "Vendite",
+      "title": "Ordine di vendita confermato",
+      "summary": "L'ufficio spedizioni conferma l'ordine: se l'importo è alto la scorta va riservata, la conferma al cliente parte sempre, e l'audit resta.",
+      "producer": {
+        "kind": "fun",
+        "label": "FUN PUB.EVT",
+        "detail": "F(FBK;KS_194_02A;PUB.EVT) INPUT(TYPE(SALES_ORDER_CONFIRMED) ENV(SVI) CLASS(VOOR) OBJ(202600456) PRIO(0))",
+        "source": "KS_194_02A",
+        "exchange": "business",
+        "priority": 0
+      },
+      "objects": [
+        {
+          "key": "VO;OR;202600456",
+          "label": "Ordine 456/2026 · Bianchi Srl",
+          "className": "VOOR",
+          "object": "202600456",
+          "attributes": {
+            "CLIENTE": "001234",
+            "IMPORTO": "8640",
+            "STATO": "C",
+            "MAGAZZINO": "01"
+          }
+        },
+        {
+          "key": "VO;OR;202600457",
+          "label": "Ordine 457/2026 · Verdi Spa (importo basso)",
+          "className": "VOOR",
+          "object": "202600457",
+          "attributes": {
+            "CLIENTE": "000987",
+            "IMPORTO": "1240",
+            "STATO": "C",
+            "MAGAZZINO": "01"
+          }
+        }
+      ],
+      "dataTemplate": {
+        "cliente": "Bianchi Srl",
+        "righe": 7,
+        "totale": 8640.0,
+        "valuta": "EUR",
+        "agente": "A05"
+      },
+      "script": {
+        "library": "SCP_K21",
+        "file": "SALES_ORDER_CONFIRMED.k21",
+        "text": [
+          "::SEZ Type=\"FUN\"",
+          "::OBS Fun=\"F(EXB;VT_102_01;RES.INV) 1(CO;VOOR;&event.object) P(&event.data)\"",
+          "::CND Esp=\"&event.object.IMPORTO > 5000\"",
+          "::SEZ Type=\"FUN\"",
+          "::OBS Fun=\"F(EXB;VT_201_01;SND.CNF) 1(CO;VOOR;&event.object)\"",
+          "::SEZ Type=\"AUDIT\""
+        ]
+      },
+      "observers": [
+        {
+          "id": "SALES_ORDER_CONFIRMED#1",
+          "type": "FUN",
+          "target": "F(EXB;VT_102_01;RES.INV)",
+          "condition": "&event.object.IMPORTO > 5000",
+          "goal": "riservare la scorta per gli ordini sopra i 5.000 €",
+          "note": "la formula &event.object.IMPORTO viene risolta su me-java-rpgle-std prima del confronto"
+        },
+        {
+          "id": "SALES_ORDER_CONFIRMED#2",
+          "type": "FUN",
+          "target": "F(EXB;VT_201_01;SND.CNF)",
+          "condition": null,
+          "goal": "mandare la conferma d'ordine al cliente",
+          "note": "nessuna condizione: ogni ordine confermato genera la conferma"
+        },
+        {
+          "id": "SALES_ORDER_CONFIRMED#3",
+          "type": "AUDIT",
+          "target": "WRI.AUD",
+          "condition": null,
+          "goal": "tracciare la conferma",
+          "note": "la sezione AUDIT chiama KS_194_02 (Save Audit)"
+        }
+      ],
+      "captures": [],
+      "exchangesAllowed": [
+        "business",
+        "evt"
+      ]
+    },
+    {
+      "id": "PURCHASE_REQUEST_CREATED",
+      "okevt": "OK;EVT;PURCHASE_REQUEST_CREATED",
+      "useCase": "Acquisti",
+      "title": "Richiesta di acquisto creata",
+      "summary": "Due soglie nello stesso script: sopra 10.000 € approva il reparto, sopra 100.000 € serve anche la direzione. L'ordine fornitore parte comunque.",
+      "producer": {
+        "kind": "fun",
+        "label": "FUN PUB.EVT",
+        "detail": "F(FBK;KS_194_02A;PUB.EVT) INPUT(TYPE(PURCHASE_REQUEST_CREATED) ENV(SVI) CLASS(CARI) OBJ(000123) PRIO(3))",
+        "source": "KS_194_02A",
+        "exchange": "business",
+        "priority": 3
+      },
+      "objects": [
+        {
+          "key": "CA;RI;000123",
+          "label": "Richiesta 123 · cancelleria e consumabili",
+          "className": "CARI",
+          "object": "000123",
+          "attributes": {
+            "IMPORTO": "42000",
+            "FORNITORE": "Rossi Srl",
+            "CATEGORIA": "CANC"
+          }
+        },
+        {
+          "key": "CA;RI;000124",
+          "label": "Richiesta 124 · impianto di aspirazione",
+          "className": "CARI",
+          "object": "000124",
+          "attributes": {
+            "IMPORTO": "148000",
+            "FORNITORE": "Impianti Nord Srl",
+            "CATEGORIA": "IMPIANTI"
+          }
+        }
+      ],
+      "dataTemplate": {
+        "fornitore": "Rossi Srl",
+        "righe": 3,
+        "totale": 42000.0,
+        "richiedente": "M. Verdi"
+      },
+      "script": {
+        "library": "SCP_K21",
+        "file": "PURCHASE_REQUEST_CREATED.k21",
+        "text": [
+          "::SEZ Type=\"FUN\"",
+          "::OBS Fun=\"F(EXB;AC_110_01;APR.REQ) 1(CO;CARI;&event.object)\"",
+          "::CND Esp=\"&event.object.IMPORTO > 10000\"",
+          "::SEZ Type=\"FUN\"",
+          "::OBS Fun=\"F(EXB;AC_110_02;APR.DIR) 1(CO;CARI;&event.object)\"",
+          "::CND Esp=\"&event.object.IMPORTO > 100000\"",
+          "::SEZ Type=\"PGM\"",
+          "::OBS Pgm=\"PGMORD\""
+        ]
+      },
+      "observers": [
+        {
+          "id": "PURCHASE_REQUEST_CREATED#1",
+          "type": "FUN",
+          "target": "F(EXB;AC_110_01;APR.REQ)",
+          "condition": "&event.object.IMPORTO > 10000",
+          "goal": "approvazione del responsabile di reparto",
+          "note": "sopra i 10.000 € la richiesta non può passare da sola"
+        },
+        {
+          "id": "PURCHASE_REQUEST_CREATED#2",
+          "type": "FUN",
+          "target": "F(EXB;AC_110_02;APR.DIR)",
+          "condition": "&event.object.IMPORTO > 100000",
+          "goal": "approvazione della direzione",
+          "note": "seconda soglia, secondo ascoltatore: due sezioni nello stesso file, due chiamate indipendenti"
+        },
+        {
+          "id": "PURCHASE_REQUEST_CREATED#3",
+          "type": "PGM",
+          "target": "PGMORD",
+          "condition": null,
+          "goal": "creare l'ordine fornitore in bozza",
+          "note": "programma storico, chiamato con class, object, user e data dell'evento"
+        }
+      ],
+      "captures": [],
+      "exchangesAllowed": [
+        "business",
+        "evt"
+      ]
+    },
+    {
+      "id": "STOCK_BELOW_REORDER",
+      "okevt": "OK;EVT;STOCK_BELOW_REORDER",
+      "useCase": "Magazzino",
+      "title": "Articolo sotto scorta",
+      "summary": "Il controllo scorte pubblica da SDK appena un articolo scende sotto il minimo, con priorità alta: il riordino non deve aspettare la coda normale.",
+      "producer": {
+        "kind": "sdk",
+        "label": "SDK EventProducer",
+        "detail": "il job notturno di controllo scorte pubblica con EventProducer.publish(...) e PRIO 4",
+        "source": "stock-monitor",
+        "exchange": "business",
+        "priority": 4
+      },
+      "objects": [
+        {
+          "key": "AR;AT;00045672",
+          "label": "Articolo VITE-M6 · magazzino 01",
+          "className": "ARAT",
+          "object": "00045672",
+          "attributes": {
+            "DISPONIBILE": "3",
+            "SCORTA_MINIMA": "10",
+            "RIORDINO": "50",
+            "FORNITORE": "00045"
+          }
+        },
+        {
+          "key": "AR;AT;00045673",
+          "label": "Articolo DADO-M8 · magazzino 02",
+          "className": "ARAT",
+          "object": "00045673",
+          "attributes": {
+            "DISPONIBILE": "120",
+            "SCORTA_MINIMA": "50",
+            "RIORDINO": "200",
+            "FORNITORE": "00045"
+          }
+        }
+      ],
+      "dataTemplate": {
+        "articolo": "VITE-M6",
+        "magazzino": "01",
+        "disponibile": 3,
+        "scorta_minima": 10
+      },
+      "script": {
+        "library": "SCP_K21",
+        "file": "STOCK_BELOW_REORDER.k21",
+        "text": [
+          "::SEZ Type=\"FUN\"",
+          "::OBS Fun=\"F(EXB;MA_310_01;REQ.ORD) 1(MB;AR;AT;00045672)\"",
+          "::CND Esp=\"&event.object.DISPONIBILE < 10\"",
+          "::SEZ Type=\"LOG\"",
+          "::OBS LogLevel=\"WARN\""
+        ]
+      },
+      "observers": [
+        {
+          "id": "STOCK_BELOW_REORDER#1",
+          "type": "FUN",
+          "target": "F(EXB;MA_310_01;REQ.ORD)",
+          "condition": "&event.object.DISPONIBILE < 10",
+          "goal": "proporre il riordino al buyer",
+          "note": "l'evento parte anche per articoli rientrati nel frattempo: la condizione lo riporta in pari senza errori"
+        },
+        {
+          "id": "STOCK_BELOW_REORDER#2",
+          "type": "LOG",
+          "target": "log del micro esecutore",
+          "condition": null,
+          "goal": "lasciare traccia nel log con livello WARN",
+          "note": "::OBS LogLevel=\"WARN\": nessuna chiamata esterna"
+        }
+      ],
+      "captures": [
+        {
+          "id": "E2E-2b90c144",
+          "type": "CAPTURE",
+          "target": "EVT_CAP_2b90c144",
+          "queue": "EVT_CAP_2b90c144",
+          "condition": "type = STOCK_BELOW_REORDER",
+          "goal": "cruscotto del magazzino: gli articoli che scendono sotto scorta in diretta",
+          "note": "cattura REG.CAP non durevole, TTL 900 s, vive nel processo che l'ha creata"
+        }
+      ],
+      "exchangesAllowed": [
+        "business",
+        "evt"
+      ]
+    },
+    {
+      "id": "SHIPMENT_DISPATCHED",
+      "okevt": "OK;EVT;SHIPMENT_DISPATCHED",
+      "useCase": "Logistica",
+      "title": "Spedizione partita",
+      "summary": "Il sistema di spedizione pubblica da SDK quando il DDT esce dal magazzino: il cliente riceve il tracking, e l'audit resta.",
+      "producer": {
+        "kind": "sdk",
+        "label": "SDK EventProducer",
+        "detail": "il gestore delle spedizioni pubblica con EventProducer.publish(\"smeupBusinessEvtExchange\", \"BUSINESS_EVT_QUEUE.in\", event)",
+        "source": "shipping-gateway",
+        "exchange": "business",
+        "priority": 0
+      },
+      "objects": [
+        {
+          "key": "DO;DT;202600123",
+          "label": "DDT 123/2026 · Bianchi Srl",
+          "className": "DODT",
+          "object": "202600123",
+          "attributes": {
+            "DESTINATARIO": "Bianchi Srl",
+            "VETTORE": "BRT",
+            "COLLI": "4",
+            "TRACKING": "BRT0099887"
+          }
+        },
+        {
+          "key": "DO;DT;202600124",
+          "label": "DDT 124/2026 · Verdi Spa",
+          "className": "DODT",
+          "object": "202600124",
+          "attributes": {
+            "DESTINATARIO": "Verdi Spa",
+            "VETTORE": "DHL",
+            "COLLI": "1",
+            "TRACKING": "DHL7712003"
+          }
+        }
+      ],
+      "dataTemplate": {
+        "ddt": "123/2026",
+        "vettore": "BRT",
+        "tracking": "BRT0099887",
+        "colli": 4
+      },
+      "script": {
+        "library": "SCP_K21",
+        "file": "SHIPMENT_DISPATCHED.k21",
+        "text": [
+          "::SEZ Type=\"FUN\"",
+          "::OBS Fun=\"F(EXB;LG_140_01;SND.TRK) 1(CO;DODT;&event.object) P(&event.data)\"",
+          "::SEZ Type=\"AUDIT\""
+        ]
+      },
+      "observers": [
+        {
+          "id": "SHIPMENT_DISPATCHED#1",
+          "type": "FUN",
+          "target": "F(EXB;LG_140_01;SND.TRK)",
+          "condition": null,
+          "goal": "mandare al cliente il link di tracciamento",
+          "note": "il data dell'evento porta già colli e tracking: la FUN non deve rileggere il DDT"
+        },
+        {
+          "id": "SHIPMENT_DISPATCHED#2",
+          "type": "AUDIT",
+          "target": "WRI.AUD",
+          "condition": null,
+          "goal": "tracciare l'uscita merce",
+          "note": "una sezione sola, nessuna condizione"
+        }
+      ],
+      "captures": [],
+      "exchangesAllowed": [
+        "business",
+        "evt"
+      ]
+    },
+    {
+      "id": "PAYMENT_RECEIVED",
+      "okevt": "OK;EVT;PAYMENT_RECEIVED",
+      "useCase": "Amministrazione",
+      "title": "Incasso ricevuto",
+      "summary": "Il modulo incassi pubblica l'evento quando la banca conferma: riconciliazione con una FUN, registrazione nel partitario con un programma RPG.",
+      "producer": {
+        "kind": "sdk",
+        "label": "SDK EventProducer",
+        "detail": "l'importatore degli estratti conto pubblica da SDK, una riga per movimento",
+        "source": "treasury-importer",
+        "exchange": "business",
+        "priority": 0
+      },
+      "objects": [
+        {
+          "key": "EI;IC;2026000045",
+          "label": "Incasso 45/2026 · fattura 187/2026",
+          "className": "EIIC",
+          "object": "2026000045",
+          "attributes": {
+            "IMPORTO": "5124",
+            "CLIENTE": "000987",
+            "STATO": "A",
+            "FATTURA": "187/2026"
+          }
+        },
+        {
+          "key": "EI;IC;2026000046",
+          "label": "Incasso 46/2026 · acconto 240 €",
+          "className": "EIIC",
+          "object": "2026000046",
+          "attributes": {
+            "IMPORTO": "240",
+            "CLIENTE": "000456",
+            "STATO": "A",
+            "FATTURA": "210/2026"
+          }
+        }
+      ],
+      "dataTemplate": {
+        "importo": 5124.0,
+        "valuta": "EUR",
+        "data_valuta": "2026-11-20",
+        "causale": "saldo fattura 187/2026"
+      },
+      "script": {
+        "library": "SCP_K21",
+        "file": "PAYMENT_RECEIVED.k21",
+        "text": [
+          "::SEZ Type=\"FUN\"",
+          "::OBS Fun=\"F(EXB;EF_220_01;REC.INC) 1(CO;EIIC;&event.object) P(&event.data)\"",
+          "::SEZ Type=\"PGM\"",
+          "::OBS Pgm=\"PGMPAR\"",
+          "::CND Esp=\"&event.object.IMPORTO > 1000\""
+        ]
+      },
+      "observers": [
+        {
+          "id": "PAYMENT_RECEIVED#1",
+          "type": "FUN",
+          "target": "F(EXB;EF_220_01;REC.INC)",
+          "condition": null,
+          "goal": "riconciliare l'incasso con la fattura aperta",
+          "note": "gira come l'utente dell'evento: se il servizio non ha i permessi giusti la FUN fallisce in silenzio"
+        },
+        {
+          "id": "PAYMENT_RECEIVED#2",
+          "type": "PGM",
+          "target": "PGMPAR",
+          "condition": "&event.object.IMPORTO > 1000",
+          "goal": "registrare il movimento nel partitario",
+          "note": "gli acconti piccoli non passano dal partitario: la soglia sta nello script, non nel programma"
+        }
+      ],
+      "captures": [],
+      "exchangesAllowed": [
+        "business",
+        "evt"
+      ]
+    },
+    {
+      "id": "PRODUCTION_ORDER_RELEASED",
+      "okevt": "OK;EVT;PRODUCTION_ORDER_RELEASED",
+      "useCase": "Produzione",
+      "title": "Ordine di produzione rilasciato",
+      "summary": "Priorità alta: il materiale va prelevato e il terminale di reparto deve saperlo subito. L'ascoltatore a37 è dichiarato come K11 nello stesso script.",
+      "producer": {
+        "kind": "fun",
+        "label": "FUN PUB.EVT",
+        "detail": "F(FBK;KS_194_02A;PUB.EVT) INPUT(TYPE(PRODUCTION_ORDER_RELEASED) ENV(SVI) CLASS(PROP) OBJ(00078) PRIO(5))",
+        "source": "KS_194_02A",
+        "exchange": "business",
+        "priority": 5
+      },
+      "objects": [
+        {
+          "key": "PR;OP;00078",
+          "label": "Ordine di produzione 78 · colla X",
+          "className": "PROP",
+          "object": "00078",
+          "attributes": {
+            "ARTICOLO": "COLLA-X",
+            "QUANTITA": "250",
+            "LINEA": "L1",
+            "STATO": "R"
+          }
+        },
+        {
+          "key": "PR;OP;00079",
+          "label": "Ordine di produzione 79 · linea ferma",
+          "className": "PROP",
+          "object": "00079",
+          "attributes": {
+            "ARTICOLO": "RESINA-Y",
+            "QUANTITA": "40",
+            "LINEA": "L2",
+            "STATO": "R"
+          }
+        }
+      ],
+      "dataTemplate": {
+        "ordine": "00078",
+        "articolo": "COLLA-X",
+        "quantita": 250,
+        "linea": "L1"
+      },
+      "script": {
+        "library": "SCP_K21",
+        "file": "PRODUCTION_ORDER_RELEASED.k21",
+        "text": [
+          "::SEZ Type=\"FUN\"",
+          "::OBS Fun=\"F(EXB;PR_410_01;PICK.MAT) 1(CO;PROP;&event.object)\"",
+          "::CND Esp=\"&event.object.QUANTITA > 100\"",
+          "::SEZ Type=\"K11\"",
+          "::OBS SubA38=\"PRO.MSG\"",
+          "::OBS VarA38=\"&event.object\""
+        ]
+      },
+      "observers": [
+        {
+          "id": "PRODUCTION_ORDER_RELEASED#1",
+          "type": "FUN",
+          "target": "F(EXB;PR_410_01;PICK.MAT)",
+          "condition": "&event.object.QUANTITA > 100",
+          "goal": "preparare il prelievo materiali",
+          "note": "i lotti piccoli li preleva l'operatore a mano"
+        },
+        {
+          "id": "PRODUCTION_ORDER_RELEASED#2",
+          "type": "K11",
+          "target": "SubA38 PRO.MSG",
+          "condition": null,
+          "goal": "mandare il messaggio al terminale di reparto",
+          "note": "l'ascoltatore a37: ::OBS SubA38= e ::OBS VarA38=, instradato da a37-service e non da me-java-batch"
+        }
+      ],
+      "captures": [],
+      "exchangesAllowed": [
+        "business",
+        "evt"
+      ]
+    },
+    {
+      "id": "TICKET_OPENED",
+      "okevt": "OK;EVT;TICKET_OPENED",
+      "useCase": "Assistenza",
+      "title": "Ticket di assistenza aperto",
+      "summary": "Il portale di assistenza pubblica sull'exchange `evt`, non su quello di business: un altro canale, altri consumatori. La priorità del ticket decide l'assegnazione.",
+      "producer": {
+        "kind": "sdk",
+        "label": "SDK EventProducer",
+        "detail": "il portale pubblica su smeupEvtExchange con routing key TICKET_OPENED.in",
+        "source": "support-portal",
+        "exchange": "evt",
+        "priority": 0
+      },
+      "objects": [
+        {
+          "key": "AS;TK;0004512",
+          "label": "Ticket 4512 · stampante etichette",
+          "className": "ASTK",
+          "object": "0004512",
+          "attributes": {
+            "PRIORITA": "2",
+            "CLIENTE": "000456",
+            "STATO": "A"
+          }
+        },
+        {
+          "key": "AS;TK;0004513",
+          "label": "Ticket 4513 · domanda generica",
+          "className": "ASTK",
+          "object": "0004513",
+          "attributes": {
+            "PRIORITA": "1",
+            "CLIENTE": "000987",
+            "STATO": "A"
+          }
+        }
+      ],
+      "dataTemplate": {
+        "oggetto": "guasto stampante etichette",
+        "canale": "portale",
+        "priorita": 2
+      },
+      "script": {
+        "library": "SCP_K21",
+        "file": "TICKET_OPENED.k21",
+        "text": [
+          "::SEZ Type=\"FUN\"",
+          "::OBS Fun=\"F(EXB;AS_120_01;ASSIGN) 1(CO;ASTK;&event.object)\"",
+          "::CND Esp=\"&event.object.PRIORITA >= 2\"",
+          "::SEZ Type=\"LOG\"",
+          "::OBS LogLevel=\"INFO\""
+        ]
+      },
+      "observers": [
+        {
+          "id": "TICKET_OPENED#1",
+          "type": "FUN",
+          "target": "F(EXB;AS_120_01;ASSIGN)",
+          "condition": "&event.object.PRIORITA >= 2",
+          "goal": "assegnare subito il ticket al tecnico di zona",
+          "note": "sotto quella priorità il ticket aspetta lo smistamento ordinario, senza evento"
+        },
+        {
+          "id": "TICKET_OPENED#2",
+          "type": "LOG",
+          "target": "log del micro esecutore",
+          "condition": null,
+          "goal": "traccia di ogni apertura",
+          "note": "livello INFO"
+        }
+      ],
+      "captures": [
+        {
+          "id": "E2E-91ff3a07",
+          "type": "CAPTURE",
+          "target": "EVT_CAP_91ff3a07",
+          "queue": "EVT_CAP_91ff3a07",
+          "condition": "type = TICKET_OPENED",
+          "goal": "cruscotto SLA dell'assistenza",
+          "note": "cattura effimera sull'exchange evt: TTL 600 s, non durevole"
+        }
+      ],
+      "exchangesAllowed": [
+        "evt",
+        "business"
+      ]
+    },
+    {
+      "id": "EMPLOYEE_HIRED",
+      "okevt": "OK;EVT;EMPLOYEE_HIRED",
+      "useCase": "Personale",
+      "title": "Nuova assunzione",
+      "summary": "Il giorno in cui parte un contratto l'evento fa scattare il provisioning delle utenze: un ascoltatore, nessuna condizione, e il campo source dice che l'ha pubblicato una FUN.",
+      "producer": {
+        "kind": "fun",
+        "label": "FUN PUB.EVT",
+        "detail": "F(FBK;KS_194_02A;PUB.EVT) INPUT(TYPE(EMPLOYEE_HIRED) ENV(SVI) CLASS(RIDI) OBJ(000789))",
+        "source": "KS_194_02A",
+        "exchange": "business",
+        "priority": 0
+      },
+      "objects": [
+        {
+          "key": "RI;DI;000789",
+          "label": "Dipendente 000789 · Anna Neri",
+          "className": "RIDI",
+          "object": "000789",
+          "attributes": {
+            "MATRICOLA": "000789",
+            "DIPARTIMENTO": "AMM",
+            "SEDE": "MI"
+          }
+        },
+        {
+          "key": "RI;DI;000790",
+          "label": "Dipendente 000790 · sede di Torino",
+          "className": "RIDI",
+          "object": "000790",
+          "attributes": {
+            "MATRICOLA": "000790",
+            "DIPARTIMENTO": "PROD",
+            "SEDE": "TO"
+          }
+        }
+      ],
+      "dataTemplate": {
+        "matricola": "000789",
+        "nome": "Anna Neri",
+        "inizio": "2026-12-01",
+        "dipartimento": "AMM"
+      },
+      "script": {
+        "library": "SCP_K21",
+        "file": "EMPLOYEE_HIRED.k21",
+        "text": [
+          "::SEZ Type=\"FUN\"",
+          "::OBS Fun=\"F(EXB;HR_010_01;PROV.USR) 1(CO;RIDI;&event.object) P(&event.data)\"",
+          "::SEZ Type=\"LOG\"",
+          "::OBS LogLevel=\"INFO\""
+        ]
+      },
+      "observers": [
+        {
+          "id": "EMPLOYEE_HIRED#1",
+          "type": "FUN",
+          "target": "F(EXB;HR_010_01;PROV.USR)",
+          "condition": null,
+          "goal": "creare l'utenza e i gruppi dell'identity provider",
+          "note": "una chiamata sola, senza condizione: l'evento è già l'appuntamento"
+        },
+        {
+          "id": "EMPLOYEE_HIRED#2",
+          "type": "LOG",
+          "target": "log del micro esecutore",
+          "condition": null,
+          "goal": "traccia dell'assunzione",
+          "note": "livello INFO"
+        }
+      ],
+      "captures": [],
+      "exchangesAllowed": [
+        "business",
+        "evt"
+      ]
     }
   ]
 }
