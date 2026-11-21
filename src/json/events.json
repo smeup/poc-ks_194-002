@@ -1,0 +1,421 @@
+{
+  "environment": "SVI",
+  "exchanges": [
+    {
+      "code": "business",
+      "name": "smeupBusinessEvtExchange",
+      "title": "Eventi di business",
+      "publish": true,
+      "capture": true,
+      "keyPrio0": "BUSINESS_EVT_QUEUE.in",
+      "keyPrioAlta": "business.event.high.<TYPE>",
+      "producers": "invup/SmeupEventPublisher · console KS_194_02A",
+      "consumers": "observer manager (SCP_K21): BUSINESS_EVT_QUEUE + BUSINESS_EVT_QUEUE_HIGH"
+    },
+    {
+      "code": "evt",
+      "name": "smeupEvtExchange",
+      "title": "Eventi applicativi (default del consumer SDK)",
+      "publish": true,
+      "capture": true,
+      "keyPrio0": "<TYPE>.in",
+      "keyPrioAlta": "<TYPE>.in",
+      "producers": "KokosListener (a37-service) · console KS_194_02A",
+      "consumers": "consumer registrati su smeupEvtExchange"
+    },
+    {
+      "code": "cmd",
+      "name": "smeupCmdExchange",
+      "title": "Comandi",
+      "publish": true,
+      "capture": true,
+      "keyPrio0": "<TYPE>.in",
+      "keyPrioAlta": "<TYPE>.in",
+      "producers": "KokosSender (coda SND*) · B£K10G",
+      "consumers": "coda di risposta SND<id>"
+    },
+    {
+      "code": "auth",
+      "name": "smeupAuthEvtExchange",
+      "title": "Sessione e autenticazione",
+      "publish": false,
+      "capture": true,
+      "keyPrio0": "AUTHENTICATION_EVT_QUEUE.in",
+      "keyPrioAlta": "AUTHENTICATION_EVT_QUEUE.in",
+      "producers": "dispatcher: SessionRefreshCoordinator / OpenIdConnectLogoutHandler",
+      "consumers": "non verificato (nessun consumer presente nei repo in locale)"
+    }
+  ],
+  "queues": [
+    {
+      "name": "BUSINESS_EVT_QUEUE",
+      "type": "EVENTI",
+      "durable": "S",
+      "binding": "BUSINESS_EVT_QUEUE.in",
+      "consumer": "thread k21-observers di me-java-batch",
+      "note": "priorità 0, la coda normale"
+    },
+    {
+      "name": "BUSINESS_EVT_QUEUE_HIGH",
+      "type": "EVENTI",
+      "durable": "S",
+      "binding": "business.event.high.<TYPE>",
+      "consumer": "thread k21-observers di me-java-batch",
+      "note": "solo per PRIO > 0"
+    },
+    {
+      "name": "AUTHENTICATION_EVT_QUEUE",
+      "type": "AUTENTICAZIONE",
+      "durable": "S",
+      "binding": "AUTHENTICATION_EVT_QUEUE.in",
+      "consumer": "dispatcher",
+      "note": "sessione e logout"
+    },
+    {
+      "name": "EVT_CAP_<id>",
+      "type": "EFFIMERA",
+      "durable": "N",
+      "binding": "dichiarata da REG.CAP",
+      "consumer": "il processo che l'ha creata",
+      "note": "auto-delete, TTL ≤ 3600 s, massimo 500 messaggi"
+    }
+  ],
+  "microExecutors": [
+    {
+      "id": "dispatcher",
+      "title": "Dispatcher",
+      "role": "autentica la chiamata e sceglie il micro esecutore da registry.yaml",
+      "knows": "l'identità dell'utente e la mappa servizio → handler"
+    },
+    {
+      "id": "me-java-batch",
+      "title": "me-java-batch",
+      "role": "consuma le code eventi, esegue gli script SCP_K21, ospita la console KS_194_02",
+      "knows": "il proprio processo, le code a cui è connesso, gli script delle librerie"
+    },
+    {
+      "id": "me-java-rpgle-std",
+      "title": "me-java-rpgle-std",
+      "role": "interprete delle schede e delle FUN chiamate dagli ascoltatori",
+      "knows": "le librerie montate e i servizi del registry che gli competono"
+    },
+    {
+      "id": "sdk",
+      "title": "Servizio con SDK",
+      "role": "pubblica eventi con EventProducer, senza passare da una FUN",
+      "knows": "solo ciò che gli passa il suo dominio"
+    },
+    {
+      "id": "broker",
+      "title": "RabbitMQ",
+      "role": "exchange topic, code, routing key",
+      "knows": "i binding: non conosce gli ascoltatori"
+    },
+    {
+      "id": "libraries",
+      "title": "Librerie DSL",
+      "role": "SCP_K21 e schede montate da kokos-libs, sola lettura",
+      "knows": "i file .k21 versionati, non chi li consuma"
+    }
+  ],
+  "events": [
+    {
+      "id": "EXPENSE_REPORT_SUBMITTED",
+      "okevt": "OK;EVT;EXPENSE_REPORT_SUBMITTED",
+      "useCase": "Nota spese",
+      "title": "Nota spese presentata",
+      "summary": "Un dipendente chiude la nota spese e la presenta: sopra i 500 € serve approvazione, e in ogni caso la copia va al buyer.",
+      "producer": {
+        "kind": "fun",
+        "label": "FUN PUB.EVT",
+        "detail": "F(FBK;KS_194_02A;PUB.EVT) INPUT(TYPE(EXPENSE_REPORT_SUBMITTED) ENV(SVI) CLASS(NRSP) OBJ(&event.object) ...)",
+        "source": "KS_194_02A",
+        "exchange": "business",
+        "priority": 0
+      },
+      "objects": [
+        {
+          "key": "NR;SP;20260417",
+          "label": "Nota spese 20260417 · trasferta Milano",
+          "className": "NRSP",
+          "object": "20260417",
+          "attributes": {
+            "IMPORTO": "1240",
+            "STATO": "I",
+            "DIPENDENTE": "000123",
+            "CENTRO": "MI"
+          }
+        },
+        {
+          "key": "NR;SP;20260418",
+          "label": "Nota spese 20260418 · rimborso chilometrico",
+          "className": "NRSP",
+          "object": "20260418",
+          "attributes": {
+            "IMPORTO": "310",
+            "STATO": "I",
+            "DIPENDENTE": "000407",
+            "CENTRO": "TO"
+          }
+        }
+      ],
+      "dataTemplate": {
+        "importo": 1240.0,
+        "valuta": "EUR",
+        "categoria": "trasferta",
+        "centro": "MI",
+        "giustificativi": 6
+      },
+      "script": {
+        "library": "SCP_K21",
+        "file": "EXPENSE_REPORT_SUBMITTED.k21",
+        "text": [
+          "::SEZ Type=\"FUN\"",
+          "::OBS Fun=\"F(EXB;EV_224_01A;APR.REQ) 1(CO;NRSP;&event.object) P(&event.data)\"",
+          "::CND Esp=\"&event.object.IMPORTO > 500\"",
+          "::SEZ Type=\"FUN\"",
+          "::OBS Fun=\"F(EXB;PO_101_01;SND.BUY) 1(CO;NRSP;&event.object)\"",
+          "::SEZ Type=\"AUDIT\""
+        ]
+      },
+      "observers": [
+        {
+          "id": "EXPENSE_REPORT_SUBMITTED#1",
+          "type": "FUN",
+          "target": "F(EXB;EV_224_01A;APR.REQ)",
+          "condition": "&event.object.IMPORTO > 500",
+          "goal": "aprire la richiesta di approvazione al responsabile",
+          "note": "parte solo se l'importo della nota supera i 500 €: la formula &event.object.IMPORTO viene risolta su me-java-rpgle-std prima del confronto"
+        },
+        {
+          "id": "EXPENSE_REPORT_SUBMITTED#2",
+          "type": "FUN",
+          "target": "F(EXB;PO_101_01;SND.BUY)",
+          "condition": null,
+          "goal": "mandare la copia al buyer di competenza",
+          "note": "nessuna condizione: parte sempre"
+        },
+        {
+          "id": "EXPENSE_REPORT_SUBMITTED#3",
+          "type": "AUDIT",
+          "target": "WRI.AUD",
+          "condition": null,
+          "goal": "scrivere la riga di audit dell'evento",
+          "note": "la sezione AUDIT chiama KS_194_02 (Save Audit)"
+        }
+      ],
+      "captures": [],
+      "exchangesAllowed": ["business", "evt"]
+    },
+    {
+      "id": "PLATE_RECOGNIZED",
+      "okevt": "OK;EVT;PLATE_RECOGNIZED",
+      "useCase": "Cancello automatico",
+      "title": "Targa riconosciuta al cancello",
+      "summary": "La telecamera legge la targa e un servizio pubblica l'evento: la reception deve saperlo subito, e il cruscotto di portineria lo vuole vedere mentre accade.",
+      "producer": {
+        "kind": "sdk",
+        "label": "SDK EventProducer",
+        "detail": "EventProducer.getInstance().publish(\"smeupBusinessEvtExchange\", routingKey, event)",
+        "source": "gate-camera-service",
+        "exchange": "business",
+        "priority": 2
+      },
+      "objects": [
+        {
+          "key": "AU;TG;AB123CD",
+          "label": "Autoveicolo AB123CD · Rossi Mario",
+          "className": "AUTG",
+          "object": "AB123CD",
+          "attributes": {
+            "TARGA": "AB123CD",
+            "PROPRIETARIO": "Rossi Mario",
+            "AUTORIZZATO": "S",
+            "PARCHEGGIO": "P1"
+          }
+        },
+        {
+          "key": "AU;TG;XY987ZW",
+          "label": "Autoveicolo XY987ZW · non autorizzato",
+          "className": "AUTG",
+          "object": "XY987ZW",
+          "attributes": {
+            "TARGA": "XY987ZW",
+            "PROPRIETARIO": "sconosciuto",
+            "AUTORIZZATO": "N",
+            "PARCHEGGIO": "nessuno"
+          }
+        }
+      ],
+      "dataTemplate": {
+        "confidenza": 0.97,
+        "cancello": "nord",
+        "direzione": "ingresso",
+        "lettura": "2026-11-21T08:12:44"
+      },
+      "script": {
+        "library": "SCP_K21",
+        "file": "PLATE_RECOGNIZED.k21",
+        "text": [
+          "::SEZ Type=\"FUN\"",
+          "::OBS Fun=\"F(EXB;VT_310_01;NOTIFY.RCP) 1(CO;AUTG;&event.object)\"",
+          "::CND Esp=\"&event.object.AUTORIZZATO == S\"",
+          "::SEZ Type=\"LOG\"",
+          "::OBS LogLevel=\"INFO\""
+        ]
+      },
+      "observers": [
+        {
+          "id": "PLATE_RECOGNIZED#1",
+          "type": "FUN",
+          "target": "F(EXB;VT_310_01;NOTIFY.RCP)",
+          "condition": "&event.object.AUTORIZZATO == S",
+          "goal": "avvisare la reception che l'auto è entrata",
+          "note": "se l'auto non è autorizzata la condizione è falsa: la FUN non parte, ed è corretto così"
+        },
+        {
+          "id": "PLATE_RECOGNIZED#2",
+          "type": "LOG",
+          "target": "log del micro esecutore",
+          "condition": null,
+          "goal": "lasciare traccia della lettura",
+          "note": "::OBS LogLevel=\"INFO\", nessuna chiamata esterna"
+        }
+      ],
+      "captures": [
+        {
+          "id": "E2E-7c41a902",
+          "type": "CAPTURE",
+          "target": "EVT_CAP_7c41a902",
+          "queue": "EVT_CAP_7c41a902",
+          "condition": "type = PLATE_RECOGNIZED",
+          "goal": "cruscotto della portineria: gli ultimi ingressi in diretta",
+          "note": "cattura effimera REG.CAP: non durevole, auto-delete, TTL 600 s, vive nella memoria del processo che l'ha creata"
+        }
+      ],
+      "exchangesAllowed": ["business", "evt"]
+    },
+    {
+      "id": "PASSIVE_INVOICE_RECEIVED",
+      "okevt": "OK;EVT;PASSIVE_INVOICE_RECEIVED",
+      "useCase": "Fattura passiva",
+      "title": "Fattura passiva ricevuta",
+      "summary": "Il collector della PEC scarica la fattura e pubblica l'evento: la contabilizzazione è una FUN, la registrazione nel ciclo passivo è un programma RPG storico.",
+      "producer": {
+        "kind": "sdk",
+        "label": "SDK EventProducer",
+        "detail": "il collector PEC costruisce SmeupBusinessEvent e chiama EventProducer.publish(...)",
+        "source": "pec-collector",
+        "exchange": "business",
+        "priority": 0
+      },
+      "objects": [
+        {
+          "key": "FA;PA;202600187",
+          "label": "Fattura passiva 187/2026 · Rossi Srl",
+          "className": "FAPA",
+          "object": "202600187",
+          "attributes": {
+            "NUMERO": "187/2026",
+            "FORNITORE": "Rossi Srl",
+            "TOTALE": "5124",
+            "STATO": "D"
+          }
+        },
+        {
+          "key": "FA;PA;202600188",
+          "label": "Fattura passiva 188/2026 · Bianchi Spa (importo basso)",
+          "className": "FAPA",
+          "object": "202600188",
+          "attributes": {
+            "NUMERO": "188/2026",
+            "FORNITORE": "Bianchi Spa",
+            "TOTALE": "240",
+            "STATO": "D"
+          }
+        }
+      ],
+      "dataTemplate": {
+        "fornitore": "Rossi Srl",
+        "piva": "01234567890",
+        "numero": "187/2026",
+        "totale": 5124.0,
+        "data_documento": "2026-11-18"
+      },
+      "script": {
+        "library": "SCP_K21",
+        "file": "PASSIVE_INVOICE_RECEIVED.k21",
+        "text": [
+          "::SEZ Type=\"FUN\"",
+          "::OBS Fun=\"F(EXB;FA_268_01;INV.VAL) 1(CO;FAPA;&event.object) P(&event.data)\"",
+          "::SEZ Type=\"PGM\"",
+          "::OBS Pgm=\"PGMREC\"",
+          "::CND Esp=\"&event.object.TOTALE > 1000\"",
+          "::OBS SubA38=\"REC.FAT\""
+        ]
+      },
+      "observers": [
+        {
+          "id": "PASSIVE_INVOICE_RECEIVED#1",
+          "type": "FUN",
+          "target": "F(EXB;FA_268_01;INV.VAL)",
+          "condition": null,
+          "goal": "contabilizzare la fattura nel ciclo passivo",
+          "note": "parte sempre, e gira come l'utente dell'evento: stesse autorizzazioni di chi ha pubblicato"
+        },
+        {
+          "id": "PASSIVE_INVOICE_RECEIVED#2",
+          "type": "PGM",
+          "target": "PGMREC",
+          "condition": "&event.object.TOTALE > 1000",
+          "goal": "mandare al programma RPG la registrazione nel partitario",
+          "note": "un programma storico dietro una FUN K21: riceve class, object, user e data come parametri"
+        }
+      ],
+      "captures": [],
+      "exchangesAllowed": ["business", "evt"]
+    },
+    {
+      "id": "INVOICE_ARCHIVED",
+      "okevt": "OK;EVT;INVOICE_ARCHIVED",
+      "useCase": "Fattura passiva",
+      "title": "Fattura archiviata (nessuno la ascolta)",
+      "summary": "Lo stesso collector pubblica un secondo evento, per l'archiviazione. Non esiste alcuno script SCP_K21 che lo nomini: qui si vede cosa fa il motore quando l'evento non ha ascoltatori.",
+      "producer": {
+        "kind": "sdk",
+        "label": "SDK EventProducer",
+        "detail": "il collector PEC pubblica anche l'esito dell'archiviazione",
+        "source": "pec-collector",
+        "exchange": "business",
+        "priority": 0
+      },
+      "objects": [
+        {
+          "key": "FA;PA;202600187",
+          "label": "Fattura passiva 187/2026 · Rossi Srl",
+          "className": "FAPA",
+          "object": "202600187",
+          "attributes": {
+            "NUMERO": "187/2026",
+            "FORNITORE": "Rossi Srl",
+            "TOTALE": "5124",
+            "STATO": "A"
+          }
+        }
+      ],
+      "dataTemplate": {
+        "archivio": "CONSERVAZIONE",
+        "documenti": 3
+      },
+      "script": {
+        "library": "SCP_K21",
+        "file": "INVOICE_ARCHIVED.k21",
+        "text": []
+      },
+      "missingScript": true,
+      "observers": [],
+      "captures": [],
+      "exchangesAllowed": ["business"]
+    }
+  ]
+}

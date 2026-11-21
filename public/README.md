@@ -1,45 +1,40 @@
-# Feature map di Grain
+# Motore di regole — modulo eventi (KS_194_02)
 
-Prototipo navigabile che risponde a una domanda: **quali funzionalità di Grain
-sono coperte, e dove?**
+Prototipo per capire cosa succede a un evento di business dentro la piattaforma: chi lo
+pubblica, su quale exchange finisce, quale script lo trasforma in una chiamata, e cosa
+legittimamente **non** succede.
 
-A sinistra ci sono **quattro modi di leggere la mappa**, da scegliere in cima: a *strati*
-(tutte le aree insieme), a *discesa* — si parte da Grain, si scende nei componenti e
-se ne esplode uno alla volta, con il percorso sempre visibile in cima —, a *matrioska*,
-che mostra le **stesse bambole tutte aperte insieme**, dall'esterno verso l'interno
-(Grain contiene i componenti, ogni componente le sue UPP, ogni UPP i suoi capitoli), e a
-*matrioska semplice*, che si ferma alle UPP: i capitoli non ci sono, si vedono i numeri
-di ogni UPP e tutta la mappa sta in una schermata. Nelle due matrioske non si naviga:
-nella completa l'unico click è la scelta del capitolo, e le cornici che lo contengono si
-illuminano anche quando si passa alla semplice.
+Tutti i numeri sono simulati nel browser: nessun server, nessun broker, nessuna chiamata di
+rete oltre al caricamento dei JSON. Gli eventi e gli oggetti applicativi sono inventati ma
+costruiti sulla forma vera del motore (SmeupBusinessEvent, script `SCP_K21`, routing key,
+condizione `::CND`, ack/nack) letta nel codice di `kokos-me-java-batch` e
+`kokos-sdk-java-rpgle`.
 
-Nella vista a strati c'è la mappa di Grain — Frontend (Webup e Ketchup con tutti i
-loro capitoli), Dispatcher e comunicazione, Business Logic, Strato ontologico,
-Dati, Infrastruttura. **Ogni macro blocco (area) e ogni blocco (UPP, sezioni del
-dispatcher, database, UFR) è chiudibile, e all'apertura sono tutti chiusi**; c'è
-comunque "Espandi tutto / Comprimi tutto" e una ricerca che apre da sola i blocchi
-in cui trova qualcosa. Ogni blocco dichiara la UPP dei capitoli che contiene (`KS_197 · 4`,
-`KSBASE · 3`, `KS_193 · 2`…) e ogni capitolo mostra quante delle sue feature sono
-presenti (`2/5`). Cliccando un capitolo, a destra compare la tabella delle sue feature:
+## Le tre schede
 
-- **Nome** — la funzionalità, con l'area della feature map a cui appartiene;
-- **Descrizione** — che cosa fa, in una riga;
-- **Completamento** — percentuale con barretta: verde al 100%, gialla se parziale,
-  vuota allo 0%;
-- **Presente** — spunta verde se la funzionalità è completa (100%), gialla se è
-  parziale;
-- **Non presente** — x rossa se manca del tutto (0%).
+**Percorso** — scegli un evento (`OK;EVT;…`) e un oggetto applicativo (`CN;SP;…`), scrivi il
+JSON dei dati (parti dal template), decidi se pubblica una FUN o un servizio con SDK, e
+scegli priorità ed exchange. Poi esegui: i passi compaiono uno alla volta, con il messaggio
+che si costruisce, la sostituzione di `&event.*`, la valutazione delle condizioni e l'elenco
+di chi ha ricevuto l'evento.
 
-In cima alla mappa c'è la **ricerca**: cerca nei nomi dei capitoli e delle UPP e
-nel nome e nella descrizione delle feature (senza badare a maiuscole e accenti).
-Quello che corrisponde resta evidenziato — i capitoli direttamente, le UPP che li
-contengono, e quelli che contengono feature corrispondenti — mentre il resto si
-attenua; aprendo un capitolo, le feature che corrispondono sono marcate `match`
-nella tabella.
+**Sistema** — chi parla con chi, con quale canale: la FUN e il dispatcher, il servizio con
+SDK, l'exchange, le code, il thread `k21-observers`, le librerie degli script, la FUN
+dell'ascoltatore, la cattura effimera, la console. Ogni canale accende i nodi che tocca e i
+pallini che si muovono sono il messaggio che passa.
 
-Le funzionalità sono quelle della lista ufficiale di Grain, **spezzate una per
-voce** — un elenco nella lista diventa una riga per elemento (CSV, XLS, PDF,
-Google Drive; block, object, SQL, NoSQL; una riga per linguaggio; un connettore
-per riga): in tutto 202, distribuite su tutti gli 81 capitoli della struttura. La
-presenza è simulata (dati finti in `src/json/`).
-Non ci sono backend né database: tutto il contenuto è in JSON.
+**Esiti** — sette esiti raccontati: cosa fa il motore, cosa non fa, quale oggetto `OK` lo
+racconta. Ogni scheda si riapre nel percorso con evento e oggetto già scelti.
+
+## Gli oggetti OK
+
+La striscia in fondo alla pagina accende le entità che forniscono i numeri della scheda
+attiva: `OKEVT` (catalogo eventi), `OKOBS` (registro ascoltatori, stabili ed effimeri),
+`OKQUE` (code), `OKEXC` (exchange con chi pubblica e chi consuma).
+
+## Cosa guardare per primo
+
+La nota spese con importo 1240 € fa partire tre ascoltatori; la stessa nota da 310 € ne fa
+partire due, e la terza non è un errore. La targa al cancello con priorità 2 finisce sulla
+coda alta. La fattura archiviata non ha script: il consumer risponde NACK senza requeue e il
+messaggio si perde senza che il pubblicatore lo sappia.
