@@ -1,0 +1,120 @@
+{
+  "scenarios": [
+    {
+      "id": "piu-ascoltatori",
+      "title": "Un evento, tre ascoltatori",
+      "lead": "La nota spese si presenta: la FUN di approvazione, l’invio al buyer e l’audit sono tre sezioni dello stesso file SCP_K21. Il gestore le cicla tutte, una dispatch asincrona per ciascuna.",
+      "happens": [
+        "ScpK21Manager legge un solo file, EXPENSE_REPORT_SUBMITTED.k21, e accumula una lista di sezioni ::SEZ",
+        "K21EventHandler cicla la lista e chiama executeFunAsync per ogni sezione con condizione vera",
+        "nessun ordine garantito: sono tre chiamate asincrone indipendenti",
+        "il consumer acka appena il dispatch è partito, non quando le FUN hanno finito"
+      ],
+      "notHappens": [
+        "non c’è un esito unico dell’evento: nessuno sa se le tre FUN sono andate bene",
+        "non esiste un «evento fallito»: esiste un messaggio ackato e una FUN che può essere andata male per conto suo"
+      ],
+      "ok": ["OKEVT", "OKOBS"],
+      "open": { "eventId": "EXPENSE_REPORT_SUBMITTED", "objectKey": "NR;SP;20260417" }
+    },
+    {
+      "id": "condizione-falsa",
+      "title": "Nessun ascoltatore parte, ed è corretto",
+      "lead": "Stessa nota spese da 310 €: la condizione sulla soglia dei 500 € è falsa. La FUN di approvazione non viene chiamata, l’audit e il buyer sì. Non è un guasto, è la regola che funziona.",
+      "happens": [
+        "la formula &event.object.IMPORTO viene risolta su me-java-rpgle-std prima del confronto, e diventa il numero 310",
+        "BooleanOperationManager valuta 310 > 500 e risponde falso",
+        "per quella sezione non parte nulla; il ciclo passa alla sezione dopo",
+        "il messaggio viene comunque ackato: il broker ha fatto il suo lavoro"
+      ],
+      "notHappens": [
+        "non c’è NACK, non c’è requeue, non c’è ritentativo: la condizione falsa è un esito definitivo",
+        "non compare nessun errore da nessuna parte: chi aspettava l’approvazione deve guardare la condizione, non i log"
+      ],
+      "ok": ["OKOBS"],
+      "open": { "eventId": "EXPENSE_REPORT_SUBMITTED", "objectKey": "NR;SP;20260418" }
+    },
+    {
+      "id": "fun-o-sdk",
+      "title": "Chi pubblica cambia il payload, non il percorso",
+      "lead": "La nota spese nasce da una FUN (PUB.EVT), la targa al cancello da un servizio con SDK. Da lì in avanti il viaggio è identico: stesso exchange, stesso tipo di evento, stesso consumer.",
+      "happens": [
+        "PUB.EVT costruisce il payload dalla FUN: niente JSON libero, e l’utente è context.getUser(), mai un parametro",
+        "EventProducer pubblica direttamente in AMQP con il payload costruito dal servizio",
+        "il campo source dice chi ha pubblicato: KS_194_02A per la console, il nome del servizio per l’SDK",
+        "il resto del percorso non distingue le due origini"
+      ],
+      "notHappens": [
+        "un evento pubblicato da SDK non passa dal registry: nessuno gli dice quale micro esecutore lo servirà, decide l’exchange",
+        "PUB.JSN non accetta un utente nel JSON: lo sovrascrive sempre con l’identità autenticata"
+      ],
+      "ok": ["OKEVT", "OKEXC"],
+      "open": { "eventId": "PLATE_RECOGNIZED", "objectKey": "AU;TG;AB123CD" }
+    },
+    {
+      "id": "in-process",
+      "title": "Un ascoltatore che vive in memoria",
+      "lead": "Il cruscotto della portineria vuole vedere gli ingressi mentre accadono, senza aspettare un deploy. REG.CAP dichiara una coda effimera e la consuma dentro il processo: è il secondo consumatore della stessa coda.",
+      "happens": [
+        "la coda EVT_CAP_<id> non è durevole, è auto-delete e ha un TTL massimo di 3600 secondi",
+        "il buffer vive nella memoria del processo che ha risposto a REG.CAP e ha un tetto di messaggi",
+        "il percorso dell’evento non cambia: gli ascoltatori dello script partono comunque"
+      ],
+      "notHappens": [
+        "non è una registrazione: non scrive niente su disco e non finisce in un repository versionato",
+        "non sopravvive al riavvio del processo, e su un ambiente con più repliche vale solo dove la chiamata è arrivata"
+      ],
+      "ok": ["OKOBS", "OKQUE"],
+      "open": { "eventId": "PLATE_RECOGNIZED", "objectKey": "AU;TG;AB123CD" }
+    },
+    {
+      "id": "k21-e-programmi",
+      "title": "Ascoltatori di natura diversa, nello stesso script",
+      "lead": "Sulla fattura passiva convivono una FUN moderna e un programma RPG storico: la sezione ::SEZ Type=\"PGM\" non chiama la FUN direttamente ma passa dalla FUN di osservazione del K21, che riceve class, object, user e data.",
+      "happens": [
+        "::OBS Fun= porta il testo della FUN così com’è, dopo la sostituzione delle variabili",
+        "::OBS Pgm= diventa una chiamata al programma con i parametri dell’evento",
+        "::OBS SubA38= e ::OBS LogLevel= coprono i casi a37 e il log, senza uscire dal processo",
+        "Type=\"AUDIT\" scrive la riga di audit con KS_194_02"
+      ],
+      "notHappens": [
+        "il programma RPG non sa che esiste un evento: riceve una chiamata come tutte le altre",
+        "nessuna di queste forme di ascoltatore viene creata o modificata a runtime: lo script è un file versionato"
+      ],
+      "ok": ["OKOBS"],
+      "open": { "eventId": "PASSIVE_INVOICE_RECEIVED", "objectKey": "FA;PA;202600187" }
+    },
+    {
+      "id": "code-diverse",
+      "title": "La stessa evento su code diverse",
+      "lead": "Con priorità maggiore di zero la routing key cambia: business.event.high.<TYPE> porta sulla coda alta. È la differenza che fa sembrare «sparito» un evento che invece è solo finito altrove.",
+      "happens": [
+        "priorità 0 va su BUSINESS_EVT_QUEUE.in, priorità > 0 su BUSINESS_EVT_QUEUE_HIGH",
+        "l’exchange evt serve gli eventi applicativi del consumer SDK, cmd i comandi con la coda di risposta SND<id>",
+        "l’exchange auth è dell’autenticazione e non è pubblicabile dal codice: PUB.EVT risponde «EXCH non valido»"
+      ],
+      "notHappens": [
+        "chi consuma la coda normale non vede gli eventi ad alta priorità",
+        "l’exchange non conosce gli ascoltatori: una routing key senza binding non dà errore, il messaggio semplicemente non arriva a nessuno"
+      ],
+      "ok": ["OKQUE", "OKEXC"],
+      "open": { "eventId": "PLATE_RECOGNIZED", "objectKey": "AU;TG;XY987ZW" }
+    },
+    {
+      "id": "senza-script",
+      "title": "L’evento che nessuno ascolta",
+      "lead": "Il collector pubblica anche l’esito dell’archiviazione, ma nessuno script SCP_K21 porta quel nome. Qui il motore non è indifferente: cerca il file, non lo trova, e il consumer risponde NACK senza requeue.",
+      "happens": [
+        "ScpK21Manager cerca SCP_K21/INVOICE_ARCHIVED.k21 nelle librerie dell’applicazione e non lo trova",
+        "il costruttore lancia, K21EventHandler rilancia, il consumer fa NACK",
+        "il NACK è senza requeue: RabbitMQ scarta il messaggio, nessun secondo tentativo"
+      ],
+      "notHappens": [
+        "il pubblicatore non se ne accorge: la publish era già riuscita, il guasto è a valle",
+        "non c’è una dead letter queue dichiarata in questo percorso: il messaggio non si ritrova da nessuna parte"
+      ],
+      "ok": ["OKEVT", "OKQUE"],
+      "open": { "eventId": "INVOICE_ARCHIVED", "objectKey": "FA;PA;202600187" }
+    }
+  ]
+}
