@@ -128,16 +128,16 @@
       "producer": {
         "kind": "fun",
         "label": "FUN PUB.EVT",
-        "detail": "F(FBK;KS_194_02A;PUB.EVT) INPUT(TYPE(EXPENSE_REPORT_SUBMITTED) ENV(SVI) CLASS(NRSP) OBJ(&event.object) ...)",
+        "detail": "F(FBK;KS_194_02A;PUB.EVT) INPUT(TYPE(EXPENSE_REPORT_SUBMITTED) ENV(SVI) CLASS(SPNOT) OBJ(&event.object) ...)",
         "source": "KS_194_02A",
         "exchange": "business",
         "priority": 0
       },
       "objects": [
         {
-          "key": "NR;SP;20260417",
+          "key": "SP;NOT;20260417",
           "label": "Nota spese 20260417 · trasferta Milano",
-          "className": "NRSP",
+          "className": "SPNOT",
           "object": "20260417",
           "attributes": {
             "IMPORTO": "1240",
@@ -147,9 +147,9 @@
           }
         },
         {
-          "key": "NR;SP;20260418",
+          "key": "SP;NOT;20260418",
           "label": "Nota spese 20260418 · rimborso chilometrico",
-          "className": "NRSP",
+          "className": "SPNOT",
           "object": "20260418",
           "attributes": {
             "IMPORTO": "310",
@@ -171,10 +171,10 @@
         "file": "EXPENSE_REPORT_SUBMITTED.k21",
         "text": [
           "::SEZ Type=\"FUN\"",
-          "::OBS Fun=\"F(EXB;EV_224_01A;APR.REQ) 1(CO;NRSP;&event.object) P(&event.data)\"",
+          "::OBS Fun=\"F(EXB;EV_224_01A;APR.REQ) 1(CO;SPNOT;&event.object) P(&event.data)\"",
           "::CND Esp=\"&event.object.IMPORTO > 500\"",
           "::SEZ Type=\"FUN\"",
-          "::OBS Fun=\"F(EXB;PO_101_01;SND.BUY) 1(CO;NRSP;&event.object)\"",
+          "::OBS Fun=\"F(EXB;PO_101_01;SND.BUY) 1(CO;SPNOT;&event.object)\"",
           "::SEZ Type=\"AUDIT\""
         ]
       },
@@ -226,9 +226,9 @@
       },
       "objects": [
         {
-          "key": "AU;TG;AB123CD",
+          "key": "AU;TAR;AB123CD",
           "label": "Autoveicolo AB123CD · Rossi Mario",
-          "className": "AUTG",
+          "className": "AUTAR",
           "object": "AB123CD",
           "attributes": {
             "TARGA": "AB123CD",
@@ -238,9 +238,9 @@
           }
         },
         {
-          "key": "AU;TG;XY987ZW",
+          "key": "AU;TAR;XY987ZW",
           "label": "Autoveicolo XY987ZW · non autorizzato",
-          "className": "AUTG",
+          "className": "AUTAR",
           "object": "XY987ZW",
           "attributes": {
             "TARGA": "XY987ZW",
@@ -261,7 +261,7 @@
         "file": "PLATE_RECOGNIZED.k21",
         "text": [
           "::SEZ Type=\"FUN\"",
-          "::OBS Fun=\"F(EXB;VT_310_01;NOTIFY.RCP) 1(CO;AUTG;&event.object)\"",
+          "::OBS Fun=\"F(EXB;VT_310_01;NOTIFY.RCP) 1(CO;AUTAR;&event.object)\"",
           "::CND Esp=\"&event.object.AUTORIZZATO == S\"",
           "::SEZ Type=\"LOG\"",
           "::OBS LogLevel=\"INFO\""
@@ -317,9 +317,9 @@
       },
       "objects": [
         {
-          "key": "FA;PA;202600187",
+          "key": "FA;PAS;202600187",
           "label": "Fattura passiva 187/2026 · Rossi Srl",
-          "className": "FAPA",
+          "className": "FAPAS",
           "object": "202600187",
           "attributes": {
             "NUMERO": "187/2026",
@@ -329,9 +329,9 @@
           }
         },
         {
-          "key": "FA;PA;202600188",
+          "key": "FA;PAS;202600188",
           "label": "Fattura passiva 188/2026 · Bianchi Spa (importo basso)",
-          "className": "FAPA",
+          "className": "FAPAS",
           "object": "202600188",
           "attributes": {
             "NUMERO": "188/2026",
@@ -353,7 +353,7 @@
         "file": "PASSIVE_INVOICE_RECEIVED.k21",
         "text": [
           "::SEZ Type=\"FUN\"",
-          "::OBS Fun=\"F(EXB;FA_268_01;INV.VAL) 1(CO;FAPA;&event.object) P(&event.data)\"",
+          "::OBS Fun=\"F(EXB;FA_268_01;INV.VAL) 1(CO;FAPAS;&event.object) P(&event.data)\"",
           "::SEZ Type=\"PGM\"",
           "::OBS Pgm=\"PGMREC\"",
           "::CND Esp=\"&event.object.TOTALE > 1000\"",
@@ -400,9 +400,9 @@
       },
       "objects": [
         {
-          "key": "FA;PA;202600187",
+          "key": "FA;PAS;202600187",
           "label": "Fattura passiva 187/2026 · Rossi Srl",
-          "className": "FAPA",
+          "className": "FAPAS",
           "object": "202600187",
           "attributes": {
             "NUMERO": "187/2026",
@@ -437,16 +437,16 @@
       "producer": {
         "kind": "fun",
         "label": "FUN PUB.EVT",
-        "detail": "F(FBK;KS_194_02A;PUB.EVT) INPUT(TYPE(SALES_ORDER_CONFIRMED) ENV(SVI) CLASS(VOOR) OBJ(202600456) PRIO(0))",
+        "detail": "F(FBK;KS_194_02A;PUB.EVT) INPUT(TYPE(SALES_ORDER_CONFIRMED) ENV(SVI) CLASS(ORVEN) OBJ(202600456) PRIO(0))",
         "source": "KS_194_02A",
         "exchange": "business",
         "priority": 0
       },
       "objects": [
         {
-          "key": "VO;OR;202600456",
+          "key": "OR;VEN;202600456",
           "label": "Ordine 456/2026 · Bianchi Srl",
-          "className": "VOOR",
+          "className": "ORVEN",
           "object": "202600456",
           "attributes": {
             "CLIENTE": "001234",
@@ -456,9 +456,9 @@
           }
         },
         {
-          "key": "VO;OR;202600457",
+          "key": "OR;VEN;202600457",
           "label": "Ordine 457/2026 · Verdi Spa (importo basso)",
-          "className": "VOOR",
+          "className": "ORVEN",
           "object": "202600457",
           "attributes": {
             "CLIENTE": "000987",
@@ -480,10 +480,10 @@
         "file": "SALES_ORDER_CONFIRMED.k21",
         "text": [
           "::SEZ Type=\"FUN\"",
-          "::OBS Fun=\"F(EXB;VT_102_01;RES.INV) 1(CO;VOOR;&event.object) P(&event.data)\"",
+          "::OBS Fun=\"F(EXB;VT_102_01;RES.INV) 1(CO;ORVEN;&event.object) P(&event.data)\"",
           "::CND Esp=\"&event.object.IMPORTO > 5000\"",
           "::SEZ Type=\"FUN\"",
-          "::OBS Fun=\"F(EXB;VT_201_01;SND.CNF) 1(CO;VOOR;&event.object)\"",
+          "::OBS Fun=\"F(EXB;VT_201_01;SND.CNF) 1(CO;ORVEN;&event.object)\"",
           "::SEZ Type=\"AUDIT\""
         ]
       },
@@ -528,16 +528,16 @@
       "producer": {
         "kind": "fun",
         "label": "FUN PUB.EVT",
-        "detail": "F(FBK;KS_194_02A;PUB.EVT) INPUT(TYPE(PURCHASE_REQUEST_CREATED) ENV(SVI) CLASS(CARI) OBJ(000123) PRIO(3))",
+        "detail": "F(FBK;KS_194_02A;PUB.EVT) INPUT(TYPE(PURCHASE_REQUEST_CREATED) ENV(SVI) CLASS(ACRDA) OBJ(000123) PRIO(3))",
         "source": "KS_194_02A",
         "exchange": "business",
         "priority": 3
       },
       "objects": [
         {
-          "key": "CA;RI;000123",
+          "key": "AC;RDA;000123",
           "label": "Richiesta 123 · cancelleria e consumabili",
-          "className": "CARI",
+          "className": "ACRDA",
           "object": "000123",
           "attributes": {
             "IMPORTO": "42000",
@@ -546,9 +546,9 @@
           }
         },
         {
-          "key": "CA;RI;000124",
+          "key": "AC;RDA;000124",
           "label": "Richiesta 124 · impianto di aspirazione",
-          "className": "CARI",
+          "className": "ACRDA",
           "object": "000124",
           "attributes": {
             "IMPORTO": "148000",
@@ -568,10 +568,10 @@
         "file": "PURCHASE_REQUEST_CREATED.k21",
         "text": [
           "::SEZ Type=\"FUN\"",
-          "::OBS Fun=\"F(EXB;AC_110_01;APR.REQ) 1(CO;CARI;&event.object)\"",
+          "::OBS Fun=\"F(EXB;AC_110_01;APR.REQ) 1(CO;ACRDA;&event.object)\"",
           "::CND Esp=\"&event.object.IMPORTO > 10000\"",
           "::SEZ Type=\"FUN\"",
-          "::OBS Fun=\"F(EXB;AC_110_02;APR.DIR) 1(CO;CARI;&event.object)\"",
+          "::OBS Fun=\"F(EXB;AC_110_02;APR.DIR) 1(CO;ACRDA;&event.object)\"",
           "::CND Esp=\"&event.object.IMPORTO > 100000\"",
           "::SEZ Type=\"PGM\"",
           "::OBS Pgm=\"PGMORD\""
@@ -625,9 +625,9 @@
       },
       "objects": [
         {
-          "key": "AR;AT;00045672",
+          "key": "AR;ART;00045672",
           "label": "Articolo VITE-M6 · magazzino 01",
-          "className": "ARAT",
+          "className": "ARART",
           "object": "00045672",
           "attributes": {
             "DISPONIBILE": "3",
@@ -637,9 +637,9 @@
           }
         },
         {
-          "key": "AR;AT;00045673",
+          "key": "AR;ART;00045673",
           "label": "Articolo DADO-M8 · magazzino 02",
-          "className": "ARAT",
+          "className": "ARART",
           "object": "00045673",
           "attributes": {
             "DISPONIBILE": "120",
@@ -660,7 +660,7 @@
         "file": "STOCK_BELOW_REORDER.k21",
         "text": [
           "::SEZ Type=\"FUN\"",
-          "::OBS Fun=\"F(EXB;MA_310_01;REQ.ORD) 1(MB;AR;AT;00045672)\"",
+          "::OBS Fun=\"F(EXB;MA_310_01;REQ.ORD) 1(MB;AR;ART;00045673)\"",
           "::CND Esp=\"&event.object.DISPONIBILE < 10\"",
           "::SEZ Type=\"LOG\"",
           "::OBS LogLevel=\"WARN\""
@@ -716,9 +716,9 @@
       },
       "objects": [
         {
-          "key": "DO;DT;202600123",
+          "key": "DO;DDT;202600123",
           "label": "DDT 123/2026 · Bianchi Srl",
-          "className": "DODT",
+          "className": "DODDT",
           "object": "202600123",
           "attributes": {
             "DESTINATARIO": "Bianchi Srl",
@@ -728,9 +728,9 @@
           }
         },
         {
-          "key": "DO;DT;202600124",
+          "key": "DO;DDT;202600124",
           "label": "DDT 124/2026 · Verdi Spa",
-          "className": "DODT",
+          "className": "DODDT",
           "object": "202600124",
           "attributes": {
             "DESTINATARIO": "Verdi Spa",
@@ -751,7 +751,7 @@
         "file": "SHIPMENT_DISPATCHED.k21",
         "text": [
           "::SEZ Type=\"FUN\"",
-          "::OBS Fun=\"F(EXB;LG_140_01;SND.TRK) 1(CO;DODT;&event.object) P(&event.data)\"",
+          "::OBS Fun=\"F(EXB;LG_140_01;SND.TRK) 1(CO;DODDT;&event.object) P(&event.data)\"",
           "::SEZ Type=\"AUDIT\""
         ]
       },
@@ -795,9 +795,9 @@
       },
       "objects": [
         {
-          "key": "EI;IC;2026000045",
+          "key": "FI;INC;2026000045",
           "label": "Incasso 45/2026 · fattura 187/2026",
-          "className": "EIIC",
+          "className": "FIINC",
           "object": "2026000045",
           "attributes": {
             "IMPORTO": "5124",
@@ -807,9 +807,9 @@
           }
         },
         {
-          "key": "EI;IC;2026000046",
+          "key": "FI;INC;2026000046",
           "label": "Incasso 46/2026 · acconto 240 €",
-          "className": "EIIC",
+          "className": "FIINC",
           "object": "2026000046",
           "attributes": {
             "IMPORTO": "240",
@@ -830,7 +830,7 @@
         "file": "PAYMENT_RECEIVED.k21",
         "text": [
           "::SEZ Type=\"FUN\"",
-          "::OBS Fun=\"F(EXB;EF_220_01;REC.INC) 1(CO;EIIC;&event.object) P(&event.data)\"",
+          "::OBS Fun=\"F(EXB;EF_220_01;REC.INC) 1(CO;FIINC;&event.object) P(&event.data)\"",
           "::SEZ Type=\"PGM\"",
           "::OBS Pgm=\"PGMPAR\"",
           "::CND Esp=\"&event.object.IMPORTO > 1000\""
@@ -869,17 +869,17 @@
       "producer": {
         "kind": "fun",
         "label": "FUN PUB.EVT",
-        "detail": "F(FBK;KS_194_02A;PUB.EVT) INPUT(TYPE(PRODUCTION_ORDER_RELEASED) ENV(SVI) CLASS(PROP) OBJ(00078) PRIO(5))",
+        "detail": "F(FBK;KS_194_02A;PUB.EVT) INPUT(TYPE(PRODUCTION_ORDER_RELEASED) ENV(SVI) CLASS(PROPR) OBJ(00078) PRIO(5))",
         "source": "KS_194_02A",
         "exchange": "business",
         "priority": 5
       },
       "objects": [
         {
-          "key": "PR;OP;00078",
+          "key": "PR;OPR;000078",
           "label": "Ordine di produzione 78 · colla X",
-          "className": "PROP",
-          "object": "00078",
+          "className": "PROPR",
+          "object": "000078",
           "attributes": {
             "ARTICOLO": "COLLA-X",
             "QUANTITA": "250",
@@ -888,10 +888,10 @@
           }
         },
         {
-          "key": "PR;OP;00079",
+          "key": "PR;OPR;000079",
           "label": "Ordine di produzione 79 · linea ferma",
-          "className": "PROP",
-          "object": "00079",
+          "className": "PROPR",
+          "object": "000079",
           "attributes": {
             "ARTICOLO": "RESINA-Y",
             "QUANTITA": "40",
@@ -911,7 +911,7 @@
         "file": "PRODUCTION_ORDER_RELEASED.k21",
         "text": [
           "::SEZ Type=\"FUN\"",
-          "::OBS Fun=\"F(EXB;PR_410_01;PICK.MAT) 1(CO;PROP;&event.object)\"",
+          "::OBS Fun=\"F(EXB;PR_410_01;PICK.MAT) 1(CO;PROPR;&event.object)\"",
           "::CND Esp=\"&event.object.QUANTITA > 100\"",
           "::SEZ Type=\"K11\"",
           "::OBS SubA38=\"PRO.MSG\"",
@@ -958,9 +958,9 @@
       },
       "objects": [
         {
-          "key": "AS;TK;0004512",
+          "key": "AS;TIC;0004512",
           "label": "Ticket 4512 · stampante etichette",
-          "className": "ASTK",
+          "className": "ASTIC",
           "object": "0004512",
           "attributes": {
             "PRIORITA": "2",
@@ -969,9 +969,9 @@
           }
         },
         {
-          "key": "AS;TK;0004513",
+          "key": "AS;TIC;0004513",
           "label": "Ticket 4513 · domanda generica",
-          "className": "ASTK",
+          "className": "ASTIC",
           "object": "0004513",
           "attributes": {
             "PRIORITA": "1",
@@ -990,7 +990,7 @@
         "file": "TICKET_OPENED.k21",
         "text": [
           "::SEZ Type=\"FUN\"",
-          "::OBS Fun=\"F(EXB;AS_120_01;ASSIGN) 1(CO;ASTK;&event.object)\"",
+          "::OBS Fun=\"F(EXB;AS_120_01;ASSIGN) 1(CO;ASTIC;&event.object)\"",
           "::CND Esp=\"&event.object.PRIORITA >= 2\"",
           "::SEZ Type=\"LOG\"",
           "::OBS LogLevel=\"INFO\""
@@ -1039,16 +1039,16 @@
       "producer": {
         "kind": "fun",
         "label": "FUN PUB.EVT",
-        "detail": "F(FBK;KS_194_02A;PUB.EVT) INPUT(TYPE(EMPLOYEE_HIRED) ENV(SVI) CLASS(RIDI) OBJ(000789))",
+        "detail": "F(FBK;KS_194_02A;PUB.EVT) INPUT(TYPE(EMPLOYEE_HIRED) ENV(SVI) CLASS(DIDIP) OBJ(000789))",
         "source": "KS_194_02A",
         "exchange": "business",
         "priority": 0
       },
       "objects": [
         {
-          "key": "RI;DI;000789",
+          "key": "DI;DIP;000789",
           "label": "Dipendente 000789 · Anna Neri",
-          "className": "RIDI",
+          "className": "DIDIP",
           "object": "000789",
           "attributes": {
             "MATRICOLA": "000789",
@@ -1057,9 +1057,9 @@
           }
         },
         {
-          "key": "RI;DI;000790",
+          "key": "DI;DIP;000790",
           "label": "Dipendente 000790 · sede di Torino",
-          "className": "RIDI",
+          "className": "DIDIP",
           "object": "000790",
           "attributes": {
             "MATRICOLA": "000790",
@@ -1079,7 +1079,7 @@
         "file": "EMPLOYEE_HIRED.k21",
         "text": [
           "::SEZ Type=\"FUN\"",
-          "::OBS Fun=\"F(EXB;HR_010_01;PROV.USR) 1(CO;RIDI;&event.object) P(&event.data)\"",
+          "::OBS Fun=\"F(EXB;HR_010_01;PROV.USR) 1(CO;DIDIP;&event.object) P(&event.data)\"",
           "::SEZ Type=\"LOG\"",
           "::OBS LogLevel=\"INFO\""
         ]
