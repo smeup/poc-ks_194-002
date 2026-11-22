@@ -1,24 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Catalog } from './lib/engine'
-import OkStrip from './components/OkStrip'
 import Percorso from './components/Percorso'
-import Sistema from './components/Sistema'
-import Esiti, { type Scenario } from './components/Esiti'
-import type { OkId } from './lib/ok'
+import Rabbit from './components/Rabbit'
+import type { Scenario } from './lib/scenari'
 
-type TabId = 'percorso' | 'sistema' | 'esiti'
+type TabId = 'percorso' | 'rabbit'
 
 const TABS: { id: TabId; label: string; hint: string }[] = [
   { id: 'percorso', label: 'Percorso', hint: 'un evento, passo per passo' },
-  { id: 'sistema', label: 'Sistema', hint: 'chi parla con chi' },
-  { id: 'esiti', label: 'Esiti', hint: 'cosa succede e cosa no' },
+  { id: 'rabbit', label: 'Capire Rabbit', hint: 'exchange, code, priorità' },
 ]
-
-const ACTIVE_OK: Record<TabId, OkId[]> = {
-  percorso: ['OKEVT', 'OKOBS', 'OKQUE'],
-  sistema: ['OKEXC', 'OKQUE'],
-  esiti: ['OKEVT', 'OKOBS', 'OKQUE', 'OKEXC'],
-}
 
 export default function App() {
   const [catalog, setCatalog] = useState<Catalog | null>(null)
@@ -138,15 +129,15 @@ export default function App() {
                 eventId={eventId}
                 initialObjectKey={initialObject}
                 onEventChange={setEventId}
+                scenarios={scenarios}
+                onApriCaso={apriNelPercorso}
               />
             )}
-            {tab === 'sistema' && <Sistema catalog={catalog} />}
-            {tab === 'esiti' && <Esiti scenarios={scenarios} onOpenInPercorso={apriNelPercorso} />}
+            {tab === 'rabbit' && <Rabbit catalog={catalog} />}
           </>
         )}
       </main>
 
-      <OkStrip active={ACTIVE_OK[tab]} />
     </div>
   )
 }

@@ -59,6 +59,10 @@ export type Observer = {
   condition: string | null
   goal: string
   note: string
+  /** solo LOG: il livello scritto in `::OBS LogLevel=` */
+  logLevel?: 'INFO' | 'WARN' | 'ERROR'
+  /** solo K11: i parametri per la sezione LOA38 (`::OBS VarA38=`) */
+  vars?: string | null
 }
 
 export type CaptureDef = {
@@ -97,6 +101,18 @@ export type Catalog = {
 
 export type StepStatus = 'ok' | 'skip' | 'warn' | 'error'
 
+/** Il pezzo di piattaforma in cui succede il passo: serve a raggruppare i blocchi nella mappa. */
+export type Componente =
+  | 'client'
+  | 'produttore'
+  | 'broker'
+  | 'observer'
+  | 'handler-std'
+  | 'handler-servizio'
+  | 'cattura'
+
+export type StepOk = 'OKEVT' | 'OKOBS' | 'OKQUE' | 'OKEXC'
+
 export type StepLine = { label: string; value: string }
 
 export type Step = {
@@ -107,6 +123,35 @@ export type Step = {
   status: StepStatus
   lines: StepLine[]
   code?: string
+  /** come colorare il blocco di codice del passo: il payload è JSON, lo script è .k21 */
+  codeLang?: 'json' | 'k21'
+  /** da quale passo arriva la freccia: assente = dal passo precedente nell'elenco */
+  after?: string[]
+  /** il componente che esegue questo passo, quando non basta l'id a dirlo */
+  componente?: Componente
+}
+
+/** Chi esegue il passo, e quali oggetti OK forniscono i numeri che si vedono. */
+export const STEP_META: Record<string, { componente: Componente; ok: StepOk[] }> = {
+  client: { componente: 'client', ok: ['OKEVT'] },
+  producer: { componente: 'produttore', ok: ['OKEVT'] },
+  identity: { componente: 'produttore', ok: ['OKEVT'] },
+  publish: { componente: 'produttore', ok: ['OKEXC'] },
+  routing: { componente: 'broker', ok: ['OKEXC', 'OKQUE'] },
+  consume: { componente: 'observer', ok: ['OKQUE'] },
+  script: { componente: 'observer', ok: ['OKOBS'] },
+  substitute: { componente: 'observer', ok: ['OKOBS'] },
+  condition: { componente: 'observer', ok: ['OKOBS'] },
+  dispatch: { componente: 'handler-std', ok: ['OKOBS'] },
+  ack: { componente: 'observer', ok: ['OKQUE', 'OKOBS'] },
+  capture: { componente: 'cattura', ok: ['OKOBS', 'OKQUE'] },
+}
+
+export function stepMeta(step: Step): { componente: Componente; ok: StepOk[] } {
+  if (step.componente) return { ...(STEP_META[step.id] ?? STEP_META.dispatch), componente: step.componente }
+  if (step.id.startsWith('dispatch:')) return STEP_META.dispatch
+  if (step.id.startsWith('capture:')) return STEP_META.capture
+  return STEP_META[step.id] ?? { componente: 'observer', ok: [] }
 }
 
 export type ObserverOutcome = {
@@ -149,7 +194,7 @@ export type RunInput = {
   exchangeCode: string
   user: string
   captureOn: boolean
-  /** ascoltatori aggiunti a mano in questa sessione: una riga K21 o una cattura */
+  /** observer aggiunti a mano in questa sessione: una riga K21 o una cattura */
   extraObservers?: Observer[]
   extraCaptures?: CaptureDef[]
   now?: Date
@@ -216,6 +261,43 @@ export function substituteCondition(
   return { text, substitutes }
 }
 
+/**
+ * Chi esegue la chiamata di un observer. LOG, AUDIT, PGM e K11 li serve sempre me-java-rpgle-std,
+ * come le FUN che chiamano un servizio `KS_…` (le schede). Tutte le altre FUN le serve il micro
+ * esecutore del servizio, che qui è un segnaposto: `me-xxx-zzz`.
+ */
+export function microEsecutorePer(tipo: Observer['type'], chiamata: string): Componente {
+  if (tipo !== 'FUN') return 'handler-std'
+  const servizio = chiamata.match(/^F\([^;]*;([^;)]+)/)?.[1]?.trim() ?? ''
+  return /^KS/i.test(servizio) ? 'handler-std' : 'handler-servizio'
+}
+
+/** La FUN come la scrive lo script in quella sezione: `::OBS Fun="F(...) 1(CO;…;…) P(...)"`. */
+export function scriptFunFor(event: EventDef, observer: Observer): string {
+  const index = event.observers.findIndex((o) => o.id === observer.id)
+  if (index < 0) return observer.target
+  const riga = k21SectionLines(event, index).find(
+    (l) => l.trim().toUpperCase().startsWith('::OBS') && /Fun=/.test(l),
+  )
+  const valore = riga?.match(/Fun="([^"]*)"/)?.[1]?.trim()
+  return valore && valore.length ? valore : observer.target
+}
+
+/**
+ * Le stesse sostituzioni, applicate però alla chiamata FUN di un observer: è il testo che parte
+ * davvero verso il micro esecutore, con `&event.object` e `&event.data` già sciolti.
+ */
+export function resolveEventTokens(
+  target: string,
+  obj: AppObject,
+  user: string,
+  timestampMs: number,
+  data: string,
+): string {
+  const { text } = substituteCondition(target, obj, user, timestampMs)
+  return text.split('&event.data').join(data)
+}
+
 /** `1240 > 500` → true. Gli operatori sono quelli di BooleanOperationManager. */
 export function evaluateCondition(expression: string): boolean | null {
   const match = expression.match(/([\w\s.]+?)\s*(>=|<=|==|!=|>|<)\s*([\w\s.]+)/)
@@ -255,18 +337,27 @@ export function evaluateCondition(expression: string): boolean | null {
 
 /** Le righe che una sezione aggiunta a mano produrrebbe nello script. */
 export function observerToScriptLines(obs: Observer): string {
-  switch (obs.type) {
-    case 'PGM':
-      return `::SEZ Type="PGM"\n::OBS Pgm="${obs.target}"${obs.condition ? `\n::CND Esp="${obs.condition}"` : ''}`
-    case 'LOG':
-      return '::SEZ Type="LOG"\n::OBS LogLevel="INFO"'
-    case 'AUDIT':
-      return '::SEZ Type="AUDIT"'
-    case 'K11':
-      return `::SEZ Type="K11"\n::OBS SubA38="${obs.target}"${obs.condition ? `\n::CND Esp="${obs.condition}"` : ''}`
-    default:
-      return `::SEZ Type="FUN"\n::OBS Fun="${obs.target}"${obs.condition ? `\n::CND Esp="${obs.condition}"` : ''}`
-  }
+  // il commento sta sopra la sezione, come negli script veri
+  const commento = `* ${obs.goal}`
+  // ogni tipo chiede una cosa diversa: FUN la funzione, PGM il programma, K11 il codice SE.SUB,
+  // LOG il messaggio; AUDIT non chiede niente. La condizione invece la possono chiedere tutti.
+  const rigaObs =
+    obs.type === 'FUN'
+      ? `::OBS Fun="${obs.target}"`
+      : obs.type === 'PGM'
+        ? `::OBS Pgm="${obs.target}"`
+        : obs.type === 'K11'
+          ? `::OBS SubA38="${obs.target}"`
+          : obs.type === 'LOG'
+            ? `::OBS LogLevel="${obs.logLevel ?? 'INFO'}" Message="${
+                obs.target.trim().startsWith('&') ? obs.target.trim() : '&event.data'
+              }"`
+            : null
+  const varA38 = obs.type === 'K11' && obs.vars ? `::OBS VarA38="${obs.vars}"` : null
+  const condizione = obs.condition ? `::CND Esp="${obs.condition}"` : ''
+  return [`::SEZ Type="${obs.type}"`, commento, rigaObs, varA38, condizione]
+    .filter((riga) => riga !== null && riga !== '')
+    .join('\n')
 }
 
 /** La coda effimera di una cattura registrata a runtime. */
@@ -303,6 +394,171 @@ export function buildPayload(
   }
 }
 
+export type ProducerCode = {
+  kind: ProducerKind
+  label: string
+  lang: string
+  text: string
+  note: string
+}
+
+/** I campi di `DATA(...)` nell'ordine del template: la FUN prende `chiave=valore`, non JSON. */
+function dataPairs(event: EventDef): string {
+  const pairs = Object.entries(event.dataTemplate).map(
+    ([k, v]) => `${k.toUpperCase()}=${String(v)}`,
+  )
+  return pairs.length ? pairs.join(';') : ''
+}
+
+/**
+ * La chiamata FUN che pubblica l'evento: è quello che scrive il programma chiamante, con la
+ * firma vera di `KS_194_02A` (`TYPE ENV CLASS OBJ DATA EXCH PRIO`).
+ */
+export function funCallCode(event: EventDef, object: AppObject, env: string): string {
+  return [
+    'F(FBK;KS_194_02A;PUB.EVT)',
+    '  INPUT(',
+    `    TYPE(${event.id})`,
+    `    ENV(${env})`,
+    `    CLASS(${object.className})`,
+    `    OBJ(${object.object})`,
+    `    DATA(${dataPairs(event)})`,
+    `    EXCH(${event.producer.exchange})`,
+    `    PRIO(${event.producer.priority}))`,
+  ].join('\n')
+}
+
+/**
+ * Lo stesso evento da un servizio Java: `SmeupBusinessEvent` + `EventProducer`, senza FUN e
+ * senza registry. `source` è il nome del servizio; se nel catalogo l'evento nasce da una FUN
+ * il POC non inventa il nome, lo lascia come segnaposto.
+ */
+export function javaProducerCode(
+  event: EventDef,
+  object: AppObject,
+  env: string,
+  exchange: ExchangeDef | null,
+): string {
+  const fromService = event.producer.source !== 'KS_194_02A'
+  const source = fromService ? event.producer.source : 'il-nome-del-servizio'
+  const exchangeName = exchange?.name ?? 'smeupBusinessEvtExchange'
+  const key = exchange ? routingKeyFor(exchange, event.id, event.producer.priority) : ''
+  const args: [string, string][] = [
+    [`"${event.id}"`, 'TYPE'],
+    [`"${env}"`, 'ENV'],
+    ['context.getUser()', 'utente'],
+    ['System.currentTimeMillis()', 'TIMESTAMP'],
+    [`"${object.className}"`, 'CLASS'],
+    [`"${object.object}"`, 'OBJ'],
+    [`"${dataPairs(event)}"`, 'DATA'],
+    [`"${source}"`, 'SOURCE'],
+  ]
+  // le colonne si allineano ma senza inseguire la riga DATA, che è lunghissima
+  const width = Math.min(Math.max(...args.map(([v]) => v.length)) + 2, 48)
+  return [
+    ...(fromService
+      ? ['// il servizio dichiara sé stesso in SOURCE: KS_194_02A non entra']
+      : ['// SOURCE è il servizio: qui il POC lascia un segnaposto, non inventa un nome']),
+    'final SmeupBusinessEvent event = new SmeupBusinessEvent(',
+    ...args.map(([v, c], i) => {
+      const comma = i === args.length - 1 ? ');' : ','
+      return `        ${(v + comma).padEnd(width)} // ${c}`
+    }),
+    'EventProducer.getInstance().publish(',
+    `        ${exchangeName},`,
+    `        "${key}",`,
+    '        event,',
+    '        null);',
+  ].join('\n')
+}
+
+/** Il codice del produttore per la scelta FUN / SDK: è quello che si vede cliccando. */
+export function producerCodeFor(
+  kind: ProducerKind,
+  event: EventDef,
+  object: AppObject,
+  env: string,
+  exchange: ExchangeDef | null,
+): ProducerCode {
+  if (kind === 'fun') {
+    return {
+      kind,
+      label: 'F(FBK;KS_194_02A;PUB.EVT)',
+      lang: 'fun',
+      text: funCallCode(event, object, env),
+      note:
+        'La scheda costruisce il payload dal modello: niente JSON libero. L’utente non è un parametro, è chi ha chiamato.',
+    }
+  }
+  return {
+    kind,
+    label: 'SmeupBusinessEvent + EventProducer',
+    lang: 'java',
+    text: javaProducerCode(event, object, env, exchange),
+    note:
+      'Il servizio pubblica in proprio su AMQP: nessuna FUN di mezzo, nessun registry da consultare.',
+  }
+}
+
+/**
+ * Il file `.k21` riga per riga, con il numero della sezione a cui appartiene ogni riga: ogni
+ * `::SEZ` apre una sezione, cioè un observer. Serve a evidenziare la sezione scelta.
+ */
+export type K21Line = { n: number; text: string; section: number | null }
+
+export function k21FileLines(event: EventDef): K21Line[] {
+  const lines = event.script?.text ?? []
+  let section: number | null = null
+  let count = 0
+  return lines.map((text, i) => {
+    if (text.trim().toUpperCase().startsWith('::SEZ')) {
+      section = count
+      count += 1
+    }
+    return { n: i + 1, text, section }
+  })
+}
+
+/** Le righe della sezione `index` del file: è quello che un observer dichiara. */
+export function k21SectionLines(event: EventDef, index: number): string[] {
+  return k21FileLines(event)
+    .filter((line) => line.section === index)
+    .map((line) => line.text)
+}
+
+/**
+ * Il codice in process che si sottoscrive allo stesso evento: una cattura effimera registrata
+ * a runtime dal processo, con `REG.CAP`/`CapturePort`, non una riga in `SCP_K21`.
+ */
+export function captureSubscribeCode(
+  event: EventDef,
+  capture: CaptureDef,
+  exchange: ExchangeDef | null,
+): string {
+  const ttl = Number(/(\d+)\s*s/.exec(capture.note)?.[1] ?? 600)
+  const max = Number(/(\d+)\s*messaggi/.exec(capture.note)?.[1] ?? 100)
+  const key = exchange ? routingKeyFor(exchange, event.id, event.producer.priority) : event.id
+  const args: [string, string][] = [
+    [`"${exchange?.name ?? 'smeupBusinessEvtExchange'}"`, 'EXCH'],
+    [`"${key}"`, 'KEY'],
+    [`${ttl}`, `TTL secondi (max ${3600})`],
+    [`${max}`, `MAX eventi (max ${500})`],
+    [`"${capture.condition}"`, 'FILTER'],
+  ]
+  // le colonne si allineano ma senza inseguire il filtro, che può essere lungo
+  const width = Math.min(Math.max(...args.map(([v]) => v.length)) + 2, 48)
+  return [
+    '// in process: la coda nasce dentro il processo che risponde alla chiamata,',
+    '// non in SCP_K21. Dalla scheda la stessa cosa è F(EXB;KS_194_02B;REG.CAP) INPUT(...)',
+    'final CaptureRequest request = new CaptureRequest(',
+    ...args.map(([v, c], i) => `        ${(v + (i === args.length - 1 ? ');' : ',')).padEnd(width)} // ${c}`),
+    'final CaptureRegistration capture =',
+    '        EventConsoleRuntime.dependencies().capture().register(request);',
+    `// capture.queue() → ${capture.queue}`,
+    '// auto-delete: TTL, massimo di messaggi, e via quando il processo chiude',
+  ].join('\n')
+}
+
 /**
  * La catena, nell'ordine in cui succede (i dodici passi di docs/schemi/README.md, qui
  * raggruppati in dieci perché due coppie non hanno niente da mostrare separatamente).
@@ -322,6 +578,22 @@ export function runScenario(input: RunInput, catalog: Catalog): RunResult {
   const payload = buildPayload(input, catalog.environment, timestampMs)
   const steps: Step[] = []
   const substitutes: { from: string; to: string }[] = []
+
+  steps.push({
+    id: 'client',
+    n: 0,
+    title: 'Il client lancia l’evento',
+    detail:
+      input.producerKind === 'fun'
+        ? 'Dal browser l’utente fa partire un’azione nella scheda: la pagina chiama il micro esecutore sul dispatcher con il token dell’utente. Da qui in poi nessuno sa più chi ha cliccato, se non per l’utente scritto nell’evento.'
+        : 'Il client web (o un altro servizio) chiama l’endpoint del micro esecutore del produttore. L’evento nasce lì dentro, non nel browser: quello che arriva al broker è già un payload costruito dal servizio.',
+    status: 'ok',
+    lines: [
+      { label: 'client', value: input.producerKind === 'fun' ? 'browser · scheda KS_194_02' : 'client web o servizio esterno' },
+      { label: 'chiamata', value: input.producerKind === 'fun' ? 'POST executeFun · KS_194_02A' : 'endpoint del servizio produttore' },
+      { label: 'chi paga il tempo', value: 'il client aspetta la risposta della chiamata, non dell’evento' },
+    ],
+  })
 
   steps.push({
     id: 'producer',
@@ -352,7 +624,7 @@ export function runScenario(input: RunInput, catalog: Catalog): RunResult {
   steps.push({
     id: 'identity',
     n: 2,
-    title: 'Identità e tempo',
+    title: 'User e timestamp',
     detail:
       input.producerKind === 'fun'
         ? 'L’utente non è un parametro: è context.getUser(), cioè chi ha chiamato. PUB.JSN sovrascrive comunque un eventuale utente nel JSON.'
@@ -398,7 +670,7 @@ export function runScenario(input: RunInput, catalog: Catalog): RunResult {
       verdict: {
         tone: 'error',
         title: 'L’evento non è nemmeno partito',
-        text: 'La FUN rifiuta la richiesta prima del broker: il chiamante riceve un messaggio di errore e una tabella vuota. Nessun ascoltatore verrà mai interrogato.',
+        text: 'La FUN rifiuta la richiesta prima del broker: il chiamante riceve un messaggio di errore e una tabella vuota. Nessun observer verrà mai interrogato.',
       },
     }
   }
@@ -410,7 +682,7 @@ export function runScenario(input: RunInput, catalog: Catalog): RunResult {
     detail:
       priority > 0
         ? `PRIO > 0: la routing key porta sul ramo alto, quindi sulla coda ${queue}. Chi consuma la coda normale non vede questo evento.`
-        : `Binding sulla coda ${queue}. Il broker non conosce gli ascoltatori: instrada e basta.`,
+        : `Binding sulla coda ${queue}. Il broker non conosce gli observer: instrada e basta.`,
     status: 'ok',
     lines: [
       { label: 'binding usato', value: routingKey },
@@ -441,20 +713,8 @@ export function runScenario(input: RunInput, catalog: Catalog): RunResult {
       status: 'error',
       lines: [
         { label: 'cercato', value: `${event.script.library}/${event.id}.k21` },
-        { label: 'effetto', value: 'eccezione → NACK (requeue = false)' },
-      ],
-    })
-    steps.push({
-      id: 'ack',
-      n: 7,
-      title: 'Nessun ack: il messaggio si perde',
-      detail:
-        'Il NACK è senza requeue: RabbitMQ scarta il messaggio, non c’è secondo tentativo. Il pubblicatore non se ne accorge, perché la pubblicazione era già riuscita. Se ne accorge solo chi apre la console.',
-      status: 'error',
-      lines: [
-        { label: 'ack', value: 'no' },
-        { label: 'requeue', value: 'false — il messaggio non torna in coda' },
-        { label: 'chi lo sa', value: 'nessuno, finché qualcuno non guarda LST.EVT o la cattura' },
+        { label: 'effetto', value: 'eccezione → NACK senza requeue: il messaggio si perde' },
+        { label: 'chi lo sa', value: 'nessuno: il pubblicatore non riceve né risultato né errore' },
       ],
     })
     return {
@@ -469,7 +729,7 @@ export function runScenario(input: RunInput, catalog: Catalog): RunResult {
       verdict: {
         tone: 'error',
         title: 'Evento senza script: perso in silenzio',
-        text: `Nessuno script ${event.id}.k21 è montato: il consumer nacka senza requeue e il messaggio sparisce. Non è un guasto del broker, è un ascoltatore che manca.`,
+        text: `Nessuno script ${event.id}.k21 è montato: il consumer nacka senza requeue e il messaggio sparisce. Non è un guasto del broker, è un observer che manca.`,
       },
     }
   }
@@ -478,7 +738,7 @@ export function runScenario(input: RunInput, catalog: Catalog): RunResult {
     id: 'script',
     n: 6,
     title: 'Legge lo script SCP_K21',
-    detail: `SourceManager apre ${event.script.library}/${event.id}.k21 dalle librerie montate: sola lettura, mai scrittura. Ogni sezione ::SEZ Type="…" è un ascoltatore.`,
+    detail: `SourceManager apre ${event.script.library}/${event.id}.k21 dalle librerie montate: sola lettura, mai scrittura. Ogni sezione ::SEZ Type="…" è un observer.`,
     status: 'ok',
     lines: [
       { label: 'file', value: `${event.script.library}/${event.id}.k21` },
@@ -491,6 +751,9 @@ export function runScenario(input: RunInput, catalog: Catalog): RunResult {
         : []),
     ],
     code: event.script.text.length ? event.script.text.join('\n') : observers.map(observerToScriptLines).join('\n'),
+    codeLang: 'k21',
+    // la freccia arriva dal prelievo, non dalla cattura che sta sulla stessa riga
+    after: ['consume'],
   })
 
   const outcomes: ObserverOutcome[] = observers.map((obs) => {
@@ -548,7 +811,7 @@ export function runScenario(input: RunInput, catalog: Catalog): RunResult {
     n: 8,
     title: 'Valuta le condizioni',
     detail:
-      'BooleanOperationManager confronta i due operandi con > < >= <= == !=. Una condizione falsa non è un errore: l’ascoltatore si salta e il giro continua.',
+      'BooleanOperationManager confronta i due operandi con > < >= <= == !=. Una condizione falsa non è un errore: l’observer si salta e il giro continua.',
     status: conditioned.length === 0 ? 'skip' : 'ok',
     lines: conditioned.length
       ? conditioned.map((o) => ({
@@ -559,47 +822,69 @@ export function runScenario(input: RunInput, catalog: Catalog): RunResult {
   })
 
   const fired = outcomes.filter((o) => o.fired)
-  steps.push({
-    id: 'dispatch',
-    n: 9,
-    title: 'executeFunAsync verso l’handler',
-    detail:
-      'Per ogni ascoltatore con condizione vera parte una chiamata asincrona verso l’URL del micro esecutore scelto dal registry, con il contesto (utente dell’evento, ambiente). La FUN gira con le autorizzazioni di quell’utente.',
-    status: fired.length ? 'ok' : 'skip',
-    lines: fired.length
-      ? fired.map((o) => ({ label: o.type, value: `${o.target}${o.type === 'FUN' ? ' — asincrona, nessun risultato al chiamante' : ''}` }))
-      : [{ label: 'ascoltatori partiti', value: 'nessuno: tutte le condizioni sono false' }],
-  })
 
-  steps.push({
-    id: 'ack',
-    n: 10,
-    title: 'Ack',
-    detail:
-      'Se il dispatch è partito il consumer acka: l’evento è stato preso in carico, non eseguito. Una FUN che poi fallisce non torna indietro, e il pubblicatore non lo saprà mai.',
-    status: 'ok',
-    lines: [
-      { label: 'ack', value: 'sì' },
-      { label: 'risultato al pubblicatore', value: 'nessuno: il dispatch è asincrono' },
-    ],
-  })
-
-  const capturesNote = input.captureOn && captures.length > 0 ? captures[0] : null
-  if (capturesNote) {
+  // il fan-out: un passo 9 per ogni observer che ha la condizione vera, non un passo solo
+  // c'è un passo 9 per OGNI observer dello script: quelli con la condizione falsa restano nel
+  // disegno, grigi e senza freccia in ingresso, perché «non parte» è un esito e va visto
+  outcomes.forEach((o) => {
+    // la FUN come parte davvero: i segnaposto sciolti con l'oggetto e i dati di questa simulazione
+    const dalloScript = scriptFunFor(event, observers.find((x) => x.id === o.id) ?? observers[0])
+    const chiamata = resolveEventTokens(
+      dalloScript,
+      object,
+      String(payload.user),
+      timestampMs,
+      input.data,
+    )
     steps.push({
-      id: 'capture',
-      n: 11,
-      title: 'La cattura effimera vede lo stesso evento',
-      detail:
-        `REG.CAP ha dichiarato ${capturesNote.queue} (non durevole, auto-delete, TTL 600 s) e la consuma dentro il processo. Il flusso non cambia: è un secondo consumatore, non un secondo percorso.`,
-      status: 'ok',
+      id: `dispatch:${o.id}`,
+      n: 9,
+      title: o.type === 'FUN' ? chiamata : `${o.type} · ${chiamata}`,
+      detail: o.fired
+        ? o.type === 'FUN'
+          ? `Una chiamata asincrona verso l’URL del micro esecutore scelto dal registry, con il contesto dell’evento: la FUN gira con le autorizzazioni dell’utente che ha pubblicato. Nessun risultato torna al chiamante.`
+          : `L’observer è di tipo ${o.type}: stessa chiamata asincrona, ma il bersaglio lo serve un altro componente della piattaforma.`
+        : 'La condizione di questa sezione è falsa: l’observer resta dichiarato nello script ma non viene chiamato. Non è un errore e non è un guasto — nessun NACK, nessun requeue, il giro continua per gli altri observer.',
+      status: o.fired ? 'ok' : 'skip',
       lines: [
-        { label: 'coda', value: capturesNote.queue },
-        { label: 'filtro', value: capturesNote.condition },
-        { label: 'vive', value: 'nella memoria del processo che ha risposto a REG.CAP' },
+        { label: 'observer', value: o.id },
+        { label: 'come la scrive lo script', value: dalloScript },
+        { label: o.fired ? 'come parte adesso' : 'come sarebbe partita', value: chiamata },
+        { label: 'perché parte', value: o.reason },
+        {
+          label: o.fired ? 'quando' : 'quando partirebbe',
+          value: o.fired ? 'subito, in parallelo agli altri observer attivi' : 'mai, con questo evento',
+        },
+        { label: 'chi lo saprebbe se fallisse', value: 'nessuno: il consumer acka la presa in carico, non l’esito' },
       ],
+      // chi non parte non riceve niente: nessuna freccia in ingresso e nessun traffico
+      after: o.fired ? ['condition'] : [],
+      componente: microEsecutorePer(o.type, dalloScript),
+    })
+  })
+  if (input.captureOn) {
+    captures.forEach((cap) => {
+      steps.push({
+        id: `capture:${cap.id}`,
+        n: 5,
+        title: `${cap.queue} preleva`,
+        detail:
+          'Il processo che ha registrato la cattura è un secondo consumatore della stessa coda: preleva la sua copia e fa quello che deve, senza passare da SCP_K21 e senza guardare le condizioni dello script. Non ha un ack verso gli altri: TTL, auto-delete, sparisce con il processo.',
+        status: 'ok',
+        lines: [
+          { label: 'coda', value: cap.queue },
+          { label: 'binding', value: `la stessa routing key della coda normale, dichiarata su ${cap.queue}` },
+          { label: 'filtro', value: cap.condition },
+          { label: 'vive', value: 'nella memoria del processo che ha registrato la cattura' },
+        ],
+        after: ['routing'],
+      })
     })
   }
+
+  // l'ordine di lettura è quello dei numeri: così un passo parallelo (la cattura, n=5) si accende
+  // nello stesso istante dell'altro consumatore e non alla fine della catena
+  steps.sort((a, b) => a.n - b.n)
 
   let verdict: Verdict
   if (fired.length === 0) {
@@ -611,13 +896,13 @@ export function runScenario(input: RunInput, catalog: Catalog): RunResult {
   } else if (fired.length === 1) {
     verdict = {
       tone: 'ok',
-      title: 'Un ascoltatore è partito',
+      title: 'Un observer è partito',
       text: 'Il messaggio è stato ackato e la FUN è stata chiamata in asincrono. Il pubblicatore non riceverà né il risultato né un eventuale errore.',
     }
   } else {
     verdict = {
       tone: 'ok',
-      title: `${fired.length} ascoltatori sono partiti dallo stesso evento`,
+      title: `${fired.length} observer sono partiti dallo stesso evento`,
       text: 'Lo script dichiara più sezioni: il gestore le cicla tutte, una dispatch asincrona per ciascuna. Non c’è nessuna garanzia sull’ordine in cui finiscono.',
     }
   }
@@ -637,8 +922,8 @@ export function runScenario(input: RunInput, catalog: Catalog): RunResult {
 
 /** Gli oggetti OK dietro ogni numero mostrato: la striscia in fondo alla pagina li accende. */
 export const OK_OBJECTS = [
-  { id: 'OKEVT', title: 'OKEVT', what: 'catalogo eventi: tipo, ascoltatori dichiarati, coda, broker, ultimo evento' },
-  { id: 'OKOBS', title: 'OKOBS', what: 'registro ascoltatori: stabili (SCP_K21) ed effimeri (catture in memoria)' },
+  { id: 'OKEVT', title: 'OKEVT', what: 'catalogo eventi: tipo, observer dichiarati, coda, broker, ultimo evento' },
+  { id: 'OKOBS', title: 'OKOBS', what: 'registro observer: stabili (SCP_K21) ed effimeri (catture in memoria)' },
   { id: 'OKQUE', title: 'OKQUE', what: 'code: messaggi, consumatori, durevole, TTL' },
   { id: 'OKEXC', title: 'OKEXC', what: 'exchange: codice, nome reale, ruolo, chi pubblica, chi consuma' },
 ] as const

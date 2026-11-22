@@ -1,7 +1,7 @@
 // Verifica del POC Motore di regole · modulo eventi.
 //
 // Uso: node tools/verify-poc.mjs [baseUrl]
-// Apre le tre schede, esegue un evento, controlla animazione della mappa, gli stati
+// Apre le due schede, esegue un evento, controlla la catena, la striscia dei casi, gli stati
 // esposti come data-* e l'overflow orizzontale a 390 px; salva tre screenshot in /tmp.
 //
 // Playwright è risolto a runtime: lo stesso script gira su macOS e su Linux.
@@ -30,15 +30,15 @@ console.log('titolo:', title)
 const events = await page.locator('[data-testid="event-select"] option').allTextContents()
 console.log('eventi nel catalogo:', events.length, events.join(' | '))
 
-// --- Percorso: evento con tre ascoltatori
+// --- Percorso: evento con tre observer
 await page.selectOption('[data-testid="event-select"]', 'EXPENSE_REPORT_SUBMITTED')
 await page.click('[data-testid="run-button"]')
 await page.click('[data-testid="reveal-all"]')
 await page.waitForSelector('[data-testid="outcomes"]')
-const steps = await page.locator('[data-testid="steps"] > li').count()
+const steps = await page.locator('[data-testid="steps"] button').count()
 const verdict = await page.locator('[data-testid="verdict"]').getAttribute('data-tone')
 const fired = await page.locator('[data-testid="outcomes"] [data-fired="yes"]').count()
-console.log(`percorso: ${steps} passi, verdetto=${verdict}, ascoltatori partiti=${fired}`)
+console.log(`percorso: ${steps} passi, verdetto=${verdict}, observer partiti=${fired}`)
 await page.screenshot({ path: shot('percorso'), fullPage: true })
 
 // --- Percorso: oggetto sotto soglia
@@ -48,17 +48,17 @@ await page.click('[data-testid="reveal-all"]')
 await page.waitForSelector('[data-testid="outcomes"]')
 const firedLow = await page.locator('[data-testid="outcomes"] [data-fired="yes"]').count()
 const verdictLow = await page.locator('[data-testid="verdict"]').getAttribute('data-tone')
-console.log(`sotto soglia: ascoltatori partiti=${firedLow}, verdetto=${verdictLow}`)
+console.log(`sotto soglia: observer partiti=${firedLow}, verdetto=${verdictLow}`)
 
 // --- Percorso: le opzioni stanno sopra il risultato, non a destra
 const boxComandi = await page.locator('[data-testid="percorso"] > section').first().boundingBox()
-const boxAscoltatori = await page.locator('[data-testid="listeners"]').boundingBox()
+const boxObserver = await page.locator('[data-testid="listeners"]').boundingBox()
 const boxRisultato = await page.locator('[data-testid="percorso-result"]').boundingBox()
 const sopra =
-  boxComandi.y + boxComandi.height <= boxAscoltatori.y + 1 &&
-  boxAscoltatori.y + boxAscoltatori.height <= boxRisultato.y + 1
+  boxComandi.y + boxComandi.height <= boxObserver.y + 1 &&
+  boxObserver.y + boxObserver.height <= boxRisultato.y + 1
 console.log(
-  `opzioni sopra: ${sopra} (comandi ${Math.round(boxComandi.y)}→${Math.round(boxComandi.y + boxComandi.height)}, ascoltatori ${Math.round(boxAscoltatori.y)}, risultato ${Math.round(boxRisultato.y)})`,
+  `opzioni sopra: ${sopra} (comandi ${Math.round(boxComandi.y)}→${Math.round(boxComandi.y + boxComandi.height)}, observer ${Math.round(boxObserver.y)}, risultato ${Math.round(boxRisultato.y)})`,
 )
 
 // --- Percorso: riga K21 aggiunta a mano
@@ -73,7 +73,7 @@ await page.click('[data-testid="reveal-all"]')
 await page.waitForSelector('[data-testid="outcomes"]')
 const partiti = await page.locator('[data-testid="outcomes"] [data-fired="yes"]').count()
 console.log(
-  `ascoltatori: ${nelFile} nel file + ${aggiunti} aggiunti → partiti ${partiti} (con la riga nuova)`,
+  `observer: ${nelFile} nel file + ${aggiunti} aggiunti → partiti ${partiti} (con la riga nuova)`,
 )
 
 // --- Percorso: evento senza script
@@ -81,36 +81,80 @@ await page.selectOption('[data-testid="event-select"]', 'INVOICE_ARCHIVED')
 await page.click('[data-testid="run-button"]')
 await page.click('[data-testid="reveal-all"]')
 const verdictMissing = await page.locator('[data-testid="verdict"]').getAttribute('data-tone')
-const lastStep = await page.locator('[data-testid="steps"] > li').last().innerText()
+await page.click('[data-testid="step-script"]')
+const lastStep = await page.locator('[data-testid="step-detail"]').innerText()
 console.log(`senza script: verdetto=${verdictMissing} · ultimo passo: ${lastStep.split('\n')[0]}`)
 
-// --- Sistema: animazione e canali
-await page.click('[data-testid="tab-sistema"]')
-await page.waitForSelector('[data-testid="map"]')
-const dotBefore = await page.locator('[data-testid="map"] span[class*="rounded-full"]').first().getAttribute('style')
-await page.waitForTimeout(900)
-const dotAfter = await page.locator('[data-testid="map"] span[class*="rounded-full"]').first().getAttribute('style')
-console.log(`sistema: pallino si muove = ${dotBefore !== dotAfter}`)
-await page.click('[data-testid="channel-script"]')
-const activeNodes = await page.locator('[data-testid="map"] [data-state="active"]').count()
-const idleNodes = await page.locator('[data-testid="map"] [data-state="idle"]').count()
-console.log(`canale script: nodi accesi=${activeNodes}, attenuati=${idleNodes}`)
-await page.screenshot({ path: shot('sistema'), fullPage: true })
+// --- Percorso: il codice del produttore cambia con FUN o SDK
+await page.click('[data-testid="producer-fun"]')
+const codeFun = await page.locator('[data-testid="producer-code"]').innerText()
+await page.click('[data-testid="producer-sdk"]')
+const codeSdk = await page.locator('[data-testid="producer-code"]').innerText()
+await page.click('[data-testid="producer-fun"]')
+console.log(
+  `codice produttore: FUN chiama PUB.EVT=${codeFun.includes('PUB.EVT')} · SDK istanzia l evento=${codeSdk.includes('SmeupBusinessEvent')} · diversi=${codeFun !== codeSdk}`,
+)
 
-// --- Esiti
-await page.click('[data-testid="tab-esiti"]')
-await page.waitForSelector('[data-testid="esiti"]')
-const scenarios = await page.locator('[data-testid^="scenario-"]').count()
-await page.click('[data-testid="scenario-code-diverse"] button')
-const openNow = await page.locator('[data-testid="scenario-code-diverse"]').getAttribute('data-open')
-console.log(`esiti: ${scenarios} schede, apertura a richiesta=${openNow}`)
-await page.screenshot({ path: shot('esiti'), fullPage: true })
+const tolti = await page.evaluate(() =>
+  ['data-input', 'exchange-select', 'priority-slider'].filter((t) =>
+    document.querySelector(`[data-testid="${t}"]`),
+  ),
+)
+console.log(`comandi tolti dal percorso: ${tolti.length ? 'RESTANO ' + tolti.join(',') : 'si'}`)
 
-// --- Ritorno al percorso da una scheda
-await page.click('[data-testid="open-senza-script"]')
+// --- Observer: due cartelle, si clicca e si vede il contenuto
+await page.selectOption('[data-testid="event-select"]', 'EXPENSE_REPORT_SUBMITTED')
+await page.click('[data-testid="listener-EXPENSE_REPORT_SUBMITTED#2"]')
+const fileK21 = await page.locator('[data-testid="listener-viewer"]').innerText()
+const accese = await page.locator('[data-testid="listener-viewer"] [data-section="si"]').count()
+const righeFile = await page.locator('[data-testid="listener-viewer"] [data-line]').count()
+console.log(
+  `file k21: ${righeFile} righe, ${accese} nella sezione scelta, path «${fileK21.split('\n')[0]}»`,
+)
+
+await page.selectOption('[data-testid="event-select"]', 'PLATE_RECOGNIZED')
+await page.click('[data-testid="listener-E2E-7c41a902"]')
+const javaCap = await page.locator('[data-testid="listener-code"]').innerText()
+const cartelle = await page.locator('[data-testid="folder-k21"], [data-testid="folder-process"]').count()
+console.log(
+  `in process: ${cartelle} cartelle · java: CaptureRequest=${javaCap.includes('new CaptureRequest(')} · coda=${javaCap.includes('EVT_CAP_7c41a902')}`,
+)
+await page.screenshot({ path: shot('observer'), fullPage: true })
+
+// --- La catena: animazione accesa e nodi che si accendono
+await page.click('[data-testid="run-button"]')
+await page.waitForSelector('[data-testid="catena"]')
+await page.waitForTimeout(600)
+const puntoPrima = await page.locator('[data-testid="steps"] span.pointer-events-none').first().getAttribute('style')
+await page.waitForTimeout(700)
+const puntoDopo = await page.locator('[data-testid="steps"] span.pointer-events-none').first().getAttribute('style')
+console.log(`catena: pallino si muove = ${puntoPrima !== puntoDopo}`)
+
+// --- La striscia dei casi: si apre il racconto e si salta al caso
+const casi = await page.locator('[data-testid^="caso-"]:not([data-testid^="caso-spiega-"])').count()
+await page.click('[data-testid="caso-spiega-senza-script"]')
+const spiega = await page.locator('[data-testid="casi"]').innerText()
+console.log(
+  `casi da provare: ${casi} · racconto aperto = ${/cosa succede/i.test(spiega)} · cosa non succede = ${/cosa non succede/i.test(spiega)}`,
+)
+await page.click('[data-testid="caso-senza-script"]')
 await page.waitForSelector('[data-testid="event-select"]')
-const selected = await page.locator('[data-testid="event-select"]').inputValue()
-console.log(`apri nel percorso: evento selezionato=${selected}`)
+console.log(`caso aperto nel percorso: ${await page.locator('[data-testid="event-select"]').inputValue()}`)
+
+// --- Capire Rabbit: exchange, code e prova della priorita
+await page.click('[data-testid="tab-rabbit"]')
+await page.waitForSelector('[data-testid="rabbit"]')
+const key0 = await page.locator('[data-testid="rabbit-key"]').innerText()
+const queue0 = await page.locator('[data-testid="rabbit-queue"]').innerText()
+await page.locator('[data-testid="priority-slider"]').fill('5')
+const key5 = await page.locator('[data-testid="rabbit-key"]').innerText()
+const queue5 = await page.locator('[data-testid="rabbit-queue"]').innerText()
+const schedeExchange = await page.locator('[data-testid^="exchange-card-"]').count()
+const schedeCode = await page.locator('[data-testid^="queue-card-"]').count()
+console.log(
+  `rabbit: ${schedeExchange} exchange, ${schedeCode} code · prio 0 → ${key0} / ${queue0} · prio 5 → ${key5} / ${queue5}`,
+)
+await page.screenshot({ path: shot('rabbit'), fullPage: true })
 
 // --- Telefono: percorso e mappa
 await page.setViewportSize({ width: 390, height: 844 })
@@ -122,32 +166,26 @@ const overflow = await page.evaluate(() => ({
 console.log(`390px percorso: scrollWidth=${overflow.scroll} clientWidth=${overflow.client} overflow=${overflow.scroll - overflow.client}px`)
 await page.screenshot({ path: shot('telefono'), fullPage: true })
 
-await page.click('[data-testid="tab-sistema"]')
-await page.waitForSelector('[data-testid="map"]')
-const nodiSovrapposti = await page.evaluate(() => {
-  const boxes = Array.from(document.querySelectorAll('[data-testid="map"] [data-testid^="node-"]')).map((n) =>
-    n.getBoundingClientRect(),
-  )
-  let coppie = 0
-  for (let i = 0; i < boxes.length; i += 1) {
-    for (let j = i + 1; j < boxes.length; j += 1) {
-      const a = boxes[i]
-      const b = boxes[j]
-      if (a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom) coppie += 1
-    }
-  }
-  return { coppie, nodi: boxes.length }
-})
-const overflowMap = await page.evaluate(() => ({
+const overflowCatena = await page.evaluate(() => ({
+  scroll: document.documentElement.scrollWidth,
+  client: document.documentElement.clientWidth,
+}))
+console.log(`390px catena: overflow pagina=${overflowCatena.scroll - overflowCatena.client}px`)
+await page.screenshot({ path: shot('telefono-catena'), fullPage: true })
+
+await page.click('[data-testid="tab-percorso"]')
+await page.click('[data-testid="tab-rabbit"]')
+await page.waitForSelector('[data-testid="rabbit"]')
+const overflowRabbit = await page.evaluate(() => ({
   scroll: document.documentElement.scrollWidth,
   client: document.documentElement.clientWidth,
 }))
 console.log(
-  `390px mappa: nodi=${nodiSovrapposti.nodi}, coppie sovrapposte=${nodiSovrapposti.coppie}, overflow pagina=${overflowMap.scroll - overflowMap.client}px`,
+  `390px rabbit: overflow pagina=${overflowRabbit.scroll - overflowRabbit.client}px`,
 )
-await page.screenshot({ path: shot('telefono-mappa'), fullPage: true })
+await page.screenshot({ path: shot('telefono-rabbit'), fullPage: true })
 
 console.log('errori console:', errors.length ? errors.join(' | ') : 'nessuno')
-console.log('screenshot:', shot('percorso'), shot('sistema'), shot('esiti'), shot('telefono'))
+console.log('screenshot:', shot('percorso'), shot('telefono'), shot('telefono-catena'))
 
 await browser.close()

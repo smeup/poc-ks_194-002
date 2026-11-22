@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
+  captureSubscribeCode,
+  stepMeta,
   evaluateCondition,
+  funCallCode,
+  k21FileLines,
+  k21SectionLines,
+  javaProducerCode,
+  producerCodeFor,
   queueFor,
   routingKeyFor,
   observerToScriptLines,
@@ -70,14 +77,27 @@ describe('righe di script generate', () => {
   it('una sezione FUN aggiunta produce SEZ, OBS e CND', () => {
     expect(observerToScriptLines({
       id: 'X#a1', type: 'FUN', target: 'F(EXB;ZZ_1_01;P)', condition: '&event.object.IMPORTO > 10',
-      goal: '', note: '',
-    })).toBe('::SEZ Type="FUN"\n::OBS Fun="F(EXB;ZZ_1_01;P)"\n::CND Esp="&event.object.IMPORTO > 10"')
+      goal: 'prova', note: '',
+    })).toBe('::SEZ Type="FUN"\n* prova\n::OBS Fun="F(EXB;ZZ_1_01;P)"\n::CND Esp="&event.object.IMPORTO > 10"')
   })
 
-  it('una sezione LOG non porta ne target ne condizione', () => {
+  it('una sezione LOG chiede il messaggio, e il livello si sceglie', () => {
     expect(observerToScriptLines({
-      id: 'X#a2', type: 'LOG', target: 'log', condition: null, goal: '', note: '',
-    })).toBe('::SEZ Type="LOG"\n::OBS LogLevel="INFO"')
+      id: 'X#a2', type: 'LOG', target: 'log', condition: null, goal: 'scrivere nel log', note: '',
+    })).toBe('::SEZ Type="LOG"\n* scrivere nel log\n::OBS LogLevel="INFO" Message="&event.data"')
+  })
+
+  it('K11 chiede il SE.SUB, AUDIT non chiede niente, e la condizione la chiedono tutti', () => {
+    expect(observerToScriptLines({
+      id: 'X#a3', type: 'K11', target: 'PRO.MSG', condition: '&event.object.QUANTITA > 100',
+      goal: 'mandare il messaggio al terminale', note: '',
+    })).toBe(
+      '::SEZ Type="K11"\n* mandare il messaggio al terminale\n::OBS SubA38="PRO.MSG"\n::CND Esp="&event.object.QUANTITA > 100"',
+    )
+    expect(observerToScriptLines({
+      id: 'X#a4', type: 'AUDIT', target: 'WRI.AUD', condition: '&event.object.IMPORTO > 10',
+      goal: 'tracciare', note: '',
+    })).toBe('::SEZ Type="AUDIT"\n* tracciare\n::CND Esp="&event.object.IMPORTO > 10"')
   })
 
   it('la coda di una cattura aggiunta prende le prime otto cifre', () => {
@@ -126,7 +146,7 @@ describe('condizioni ::CND', () => {
 })
 
 describe('il percorso di un evento', () => {
-  it('con un importo sopra soglia fa partire tutti e tre gli ascoltatori', () => {
+  it('con un importo sopra soglia fa partire tutti e tre gli observer', () => {
     const result = run(expense, 0)
     expect(result.outcomes).toHaveLength(3)
     expect(result.outcomes.filter((o) => o.fired)).toHaveLength(3)
@@ -149,7 +169,7 @@ describe('il percorso di un evento', () => {
     expect(result.outcomes.filter((o) => o.fired)).toHaveLength(1)
   })
 
-  it('con priorita 2 sposta evento e ascoltatori sulla coda alta', () => {
+  it('con priorita 2 sposta evento e observer sulla coda alta', () => {
     const result = run(plate, 0, 2)
     expect(result.routingKey).toBe('business.event.high.PLATE_RECOGNIZED')
     expect(result.queue).toBe('BUSINESS_EVT_QUEUE_HIGH')
@@ -159,13 +179,13 @@ describe('il percorso di un evento', () => {
   it('pubblica da SDK senza passare da una FUN', () => {
     const result = run(plate, 0, 2)
     expect(result.payload.source).toBe('gate-camera-service')
-    expect(result.steps[0].title).toContain('SDK')
+    expect(result.steps.find((s) => s.id === 'producer')?.title).toContain('SDK')
   })
 
   it('pubblica da FUN quando il produttore e la console', () => {
     const result = run(expense, 0)
     expect(result.payload.source).toBe('KS_194_02A')
-    expect(result.steps[0].title).toContain('FUN')
+    expect(result.steps.find((s) => s.id === 'producer')?.title).toContain('FUN')
   })
 
   it('mette class e object dell oggetto applicativo nel payload', () => {
@@ -191,11 +211,19 @@ describe('il percorso di un evento', () => {
   it('senza script si ferma prima e nacka senza requeue', () => {
     const result = run(archived, 0)
     expect(result.verdict.tone).toBe('error')
-    expect(result.steps.map((s) => s.id)).toEqual(['producer', 'identity', 'publish', 'routing', 'consume', 'script', 'ack'])
-    expect(result.steps[result.steps.length - 1].n).toBe(7)
-    expect(result.steps.find((s) => s.id === 'ack')?.lines).toContainEqual({
-      label: 'requeue',
-      value: 'false — il messaggio non torna in coda',
+    expect(result.steps.map((s) => s.id)).toEqual([
+      'client',
+      'producer',
+      'identity',
+      'publish',
+      'routing',
+      'consume',
+      'script',
+    ])
+    expect(result.steps[result.steps.length - 1].n).toBe(6)
+    expect(result.steps.find((s) => s.id === 'script')?.lines).toContainEqual({
+      label: 'effetto',
+      value: 'eccezione → NACK senza requeue: il messaggio si perde',
     })
   })
 
@@ -214,8 +242,8 @@ describe('il percorso di un evento', () => {
       catalog,
     )
     expect(result.verdict.tone).toBe('error')
-    expect(result.steps).toHaveLength(3)
-    expect(result.steps[2].detail).toContain('EXCH non valido')
+    expect(result.steps).toHaveLength(4)
+    expect(result.steps[3].detail).toContain('EXCH non valido')
     expect(auth.publish).toBe(false)
   })
 
@@ -233,13 +261,27 @@ describe('il percorso di un evento', () => {
       },
       catalog,
     )
-    expect(result.steps[0].status).toBe('warn')
+    expect(result.steps.find((s) => s.id === 'producer')?.status).toBe('warn')
     expect(result.verdict.tone).toBe('ok')
+  })
+
+  it('parte dal client e ogni passo sa a quale micro esecutore appartiene', () => {
+    const result = run(expense, 0)
+    expect(result.steps[0].id).toBe('client')
+    expect(result.steps[0].n).toBe(0)
+    expect(stepMeta(result.steps[0]).componente).toBe('client')
+    expect(stepMeta(result.steps.find((s) => s.id === 'publish')!).ok).toContain('OKEXC')
+    expect(stepMeta(result.steps.find((s) => s.id === 'script')!).ok).toContain('OKOBS')
+    expect(stepMeta(result.steps.find((s) => s.id === 'routing')!).componente).toBe('broker')
+    // la nota spese chiama EV_224_01A / PO_101_01: non sono servizi KS_, quindi me-xxx-zzz
+    expect(stepMeta(result.steps.find((s) => s.id.startsWith('dispatch:'))!).componente).toBe(
+      'handler-servizio',
+    )
   })
 
   it('aggiunge il passo 11 quando la cattura e accesa', () => {
     const on = run(plate, 0, 2)
-    expect(on.steps.some((s) => s.id === 'capture')).toBe(true)
+    expect(on.steps.some((s) => s.id.startsWith('capture:'))).toBe(true)
   })
 })
 
@@ -268,7 +310,7 @@ describe('i nuovi eventi ERP', () => {
     const result = run(stock, 0)
     expect(result.payload.source).toBe('stock-monitor')
     expect(result.queue).toBe('BUSINESS_EVT_QUEUE_HIGH')
-    expect(result.steps.some((s) => s.id === 'capture')).toBe(true)
+    expect(result.steps.some((s) => s.id.startsWith('capture:'))).toBe(true)
   })
 
   it('un articolo rientrato in scorta non fa partire la FUN', () => {
@@ -278,7 +320,7 @@ describe('i nuovi eventi ERP', () => {
     expect(fun.resolvedCondition).toBe('120 < 10')
   })
 
-  it("l'ascoltatore K11 dell'ordine di produzione resta dichiarato come K11", () => {
+  it("l'observer K11 dell'ordine di produzione resta dichiarato come K11", () => {
     const result = run(production, 0)
     const k11 = result.outcomes.find((o) => o.type === 'K11')!
     expect(k11.fired).toBe(true)
@@ -342,3 +384,66 @@ describe('i nuovi eventi ERP', () => {
   })
 })
 
+describe('il codice del produttore', () => {
+  it('la FUN prende i campi uno per uno, non un JSON libero', () => {
+    const text = funCallCode(expense, expense.objects[0], catalog.environment)
+    expect(text).toContain('F(FBK;KS_194_02A;PUB.EVT)')
+    expect(text).toContain('TYPE(EXPENSE_REPORT_SUBMITTED)')
+    expect(text).toContain('CLASS(SPNOT)')
+    expect(text).toContain('OBJ(20260417)')
+    expect(text).toContain('DATA(IMPORTO=1240;VALUTA=EUR')
+    expect(text).not.toContain('{')
+  })
+
+  it('il servizio Java dichiara se stesso in SOURCE e pubblica sulla coda alta', () => {
+    const text = javaProducerCode(plate, plate.objects[0], catalog.environment, business)
+    expect(text).toContain('SmeupBusinessEvent')
+    expect(text).toContain('"PLATE_RECOGNIZED"')
+    expect(text).toContain('"gate-camera-service"')
+    expect(text).toContain('EventProducer.getInstance().publish(')
+    expect(text).toContain('business.event.high.PLATE_RECOGNIZED')
+  })
+
+  it('su un evento che nasce da FUN il nome del servizio resta un segnaposto', () => {
+    const text = javaProducerCode(expense, expense.objects[0], catalog.environment, business)
+    expect(text).toContain('il-nome-del-servizio')
+    expect(text).not.toContain('KS_194_02A')
+  })
+
+  it('cliccando FUN o SDK cambia il codice mostrato', () => {
+    const fun = producerCodeFor('fun', expense, expense.objects[0], catalog.environment, business)
+    const sdk = producerCodeFor('sdk', expense, expense.objects[0], catalog.environment, business)
+    expect(fun.lang).toBe('fun')
+    expect(sdk.lang).toBe('java')
+    expect(fun.text).not.toBe(sdk.text)
+  })
+})
+
+describe('il file .k21 e la cattura in process', () => {
+  it('ogni ::SEZ apre una sezione, cioè un observer', () => {
+    const lines = k21FileLines(expense)
+    expect(lines).toHaveLength(expense.script.text.length)
+    // ::SEZ + commento + ::OBS + ::CND
+    expect(lines.filter((l) => l.section === 0).length).toBe(4)
+    expect(lines.filter((l) => l.section === 1).length).toBe(3)
+    expect(k21SectionLines(expense, 0)[0]).toBe('::SEZ Type="FUN"')
+    expect(k21SectionLines(expense, 0)).toContain(
+      '::CND Esp="&event.object.IMPORTO > 500"',
+    )
+  })
+
+  it('senza script non ci sono righe da leggere', () => {
+    expect(k21FileLines(archived)).toEqual([])
+  })
+
+  it('la cattura in process si registra a runtime, non nel file', () => {
+    const capture = plate.captures[0]
+    const text = captureSubscribeCode(plate, capture, business)
+    expect(text).toContain('new CaptureRequest(')
+    expect(text).toContain('"smeupBusinessEvtExchange"')
+    expect(text).toContain('"business.event.high.PLATE_RECOGNIZED"')
+    expect(text).toContain('600')
+    expect(text).toContain(`"${capture.condition}"`)
+    expect(text).not.toContain('SCP_K21/')
+  })
+})

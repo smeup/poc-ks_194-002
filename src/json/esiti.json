@@ -1,8 +1,8 @@
 {
   "scenarios": [
     {
-      "id": "piu-ascoltatori",
-      "title": "Un evento, tre ascoltatori",
+      "id": "piu-observer",
+      "title": "Un evento, tre observer",
       "lead": "La nota spese si presenta: la FUN di approvazione, l’invio al buyer e l’audit sono tre sezioni dello stesso file SCP_K21. Il gestore le cicla tutte, una dispatch asincrona per ciascuna.",
       "happens": [
         "ScpK21Manager legge un solo file, EXPENSE_REPORT_SUBMITTED.k21, e accumula una lista di sezioni ::SEZ",
@@ -25,7 +25,7 @@
     },
     {
       "id": "condizione-falsa",
-      "title": "Nessun ascoltatore parte, ed è corretto",
+      "title": "Nessun observer parte, ed è corretto",
       "lead": "Stessa nota spese da 310 €: la condizione sulla soglia dei 500 € è falsa. La FUN di approvazione non viene chiamata, l’audit e il buyer sì. Non è un guasto, è la regola che funziona.",
       "happens": [
         "la formula &event.object.IMPORTO viene risolta su me-java-rpgle-std prima del confronto, e diventa il numero 310",
@@ -70,12 +70,12 @@
     },
     {
       "id": "in-process",
-      "title": "Un ascoltatore che vive in memoria",
+      "title": "Un observer che vive in memoria",
       "lead": "Il cruscotto della portineria vuole vedere gli ingressi mentre accadono, senza aspettare un deploy. REG.CAP dichiara una coda effimera e la consuma dentro il processo: è il secondo consumatore della stessa coda.",
       "happens": [
         "la coda EVT_CAP_<id> non è durevole, è auto-delete e ha un TTL massimo di 3600 secondi",
         "il buffer vive nella memoria del processo che ha risposto a REG.CAP e ha un tetto di messaggi",
-        "il percorso dell’evento non cambia: gli ascoltatori dello script partono comunque"
+        "il percorso dell’evento non cambia: gli observer dello script partono comunque"
       ],
       "notHappens": [
         "non è una registrazione: non scrive niente su disco e non finisce in un repository versionato",
@@ -92,7 +92,7 @@
     },
     {
       "id": "k21-e-programmi",
-      "title": "Ascoltatori di natura diversa, nello stesso script",
+      "title": "Observer di natura diversa, nello stesso script",
       "lead": "Sulla fattura passiva convivono una FUN moderna e un programma RPG storico: la sezione ::SEZ Type=\"PGM\" non chiama la FUN direttamente ma passa dalla FUN di osservazione del K21, che riceve class, object, user e data.",
       "happens": [
         "::OBS Fun= porta il testo della FUN così com’è, dopo la sostituzione delle variabili",
@@ -102,7 +102,7 @@
       ],
       "notHappens": [
         "il programma RPG non sa che esiste un evento: riceve una chiamata come tutte le altre",
-        "nessuna di queste forme di ascoltatore viene creata o modificata a runtime: lo script è un file versionato"
+        "nessuna di queste forme di observer viene creata o modificata a runtime: lo script è un file versionato"
       ],
       "ok": [
         "OKOBS"
@@ -123,7 +123,7 @@
       ],
       "notHappens": [
         "chi consuma la coda normale non vede gli eventi ad alta priorità",
-        "l’exchange non conosce gli ascoltatori: una routing key senza binding non dà errore, il messaggio semplicemente non arriva a nessuno"
+        "l’exchange non conosce gli observer: una routing key senza binding non dà errore, il messaggio semplicemente non arriva a nessuno"
       ],
       "ok": [
         "OKQUE",
@@ -158,8 +158,8 @@
     },
     {
       "id": "a37-k11",
-      "title": "Un ascoltatore che parla la lingua di a37",
-      "lead": "Nell'ordine di produzione convivono una FUN moderna e un ascoltatore K11: la sezione ::SEZ Type=\"K11\" con SubA38 e VarA38 manda il messaggio al terminale di reparto, e il consumatore che lo serve non è me-java-batch ma a37-service.",
+      "title": "Un observer che parla la lingua di a37",
+      "lead": "Nell'ordine di produzione convivono una FUN moderna e un observer K11: la sezione ::SEZ Type=\"K11\" con SubA38 e VarA38 manda il messaggio al terminale di reparto, e il consumatore che lo serve non è me-java-batch ma a37-service.",
       "happens": [
         "::OBS SubA38= dichiara la subroutine a37, ::OBS VarA38= le variabili da passare (qui l'oggetto dell'evento)",
         "il gestore costruisce la FUN di osservazione K11 e la chiama in asincrono, come per ogni altra sezione",

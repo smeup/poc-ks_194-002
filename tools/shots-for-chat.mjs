@@ -11,7 +11,7 @@ const page = await browser.newPage({ viewport: { width: 1360, height: 940 }, dev
 await page.goto(base, { waitUntil: 'load' })
 await page.waitForSelector('[data-testid="event-select"]')
 await page.selectOption('[data-testid="event-select"]', 'SALES_ORDER_CONFIRMED')
-// una riga aggiunta a mano, per far vedere il pannello degli ascoltatori
+// una riga aggiunta a mano, per far vedere il pannello degli observer
 await page.click('[data-testid="add-k21"]')
 await page.fill('[data-testid="draft-target"]', 'F(EXB;VT_900_01;NOTIFY.MGR)')
 await page.fill('[data-testid="draft-condition"]', '&event.object.IMPORTO > 5000')
