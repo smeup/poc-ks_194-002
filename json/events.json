@@ -84,7 +84,7 @@
     {
       "id": "dispatcher",
       "title": "Dispatcher",
-      "role": "autentica la chiamata e sceglie il micro esecutore da registry.yaml",
+      "role": "autentica la chiamata e sceglie il microexecutor da registry.yaml",
       "knows": "l'identità dell'utente e la mappa servizio → handler"
     },
     {
@@ -288,7 +288,7 @@
         {
           "id": "PLATE_RECOGNIZED#2",
           "type": "LOG",
-          "target": "log del micro esecutore",
+          "target": "log del microexecutor",
           "condition": null,
           "goal": "lasciare traccia della lettura",
           "note": "::OBS LogLevel=\"INFO\", nessuna chiamata esterna"
@@ -705,7 +705,7 @@
         {
           "id": "STOCK_BELOW_REORDER#2",
           "type": "LOG",
-          "target": "log del micro esecutore",
+          "target": "log del microexecutor",
           "condition": null,
           "goal": "lasciare traccia nel log con livello WARN",
           "note": "::OBS LogLevel=\"WARN\": nessuna chiamata esterna"
@@ -1051,7 +1051,7 @@
         {
           "id": "TICKET_OPENED#2",
           "type": "LOG",
-          "target": "log del micro esecutore",
+          "target": "log del microexecutor",
           "condition": null,
           "goal": "traccia di ogni apertura",
           "note": "livello INFO"
@@ -1143,7 +1143,7 @@
         {
           "id": "EMPLOYEE_HIRED#2",
           "type": "LOG",
-          "target": "log del micro esecutore",
+          "target": "log del microexecutor",
           "condition": null,
           "goal": "traccia dell'assunzione",
           "note": "livello INFO"
