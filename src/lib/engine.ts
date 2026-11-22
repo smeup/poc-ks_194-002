@@ -264,7 +264,7 @@ export function substituteCondition(
 /**
  * Chi esegue la chiamata di un observer. LOG, AUDIT, PGM e K11 li serve sempre me-java-rpgle-std,
  * come le FUN che chiamano un servizio `KS_…` (le schede). Tutte le altre FUN le serve il micro
- * esecutore del servizio, che qui è un segnaposto: `me-xxx-zzz`.
+ * executor del servizio, che qui è un segnaposto: `me-xxx-zzz`.
  */
 export function microEsecutorePer(tipo: Observer['type'], chiamata: string): Componente {
   if (tipo !== 'FUN') return 'handler-std'
@@ -285,7 +285,7 @@ export function scriptFunFor(event: EventDef, observer: Observer): string {
 
 /**
  * Le stesse sostituzioni, applicate però alla chiamata FUN di un observer: è il testo che parte
- * davvero verso il micro esecutore, con `&event.object` e `&event.data` già sciolti.
+ * davvero verso il microexecutor, con `&event.object` e `&event.data` già sciolti.
  */
 export function resolveEventTokens(
   target: string,
@@ -585,8 +585,8 @@ export function runScenario(input: RunInput, catalog: Catalog): RunResult {
     title: 'Il client lancia l’evento',
     detail:
       input.producerKind === 'fun'
-        ? 'Dal browser l’utente fa partire un’azione nella scheda: la pagina chiama il micro esecutore sul dispatcher con il token dell’utente. Da qui in poi nessuno sa più chi ha cliccato, se non per l’utente scritto nell’evento.'
-        : 'Il client web (o un altro servizio) chiama l’endpoint del micro esecutore del produttore. L’evento nasce lì dentro, non nel browser: quello che arriva al broker è già un payload costruito dal servizio.',
+        ? 'Dal browser l’utente fa partire un’azione nella scheda: la pagina chiama il microexecutor sul dispatcher con il token dell’utente. Da qui in poi nessuno sa più chi ha cliccato, se non per l’utente scritto nell’evento.'
+        : 'Il client web (o un altro servizio) chiama l’endpoint del microexecutor del produttore. L’evento nasce lì dentro, non nel browser: quello che arriva al broker è già un payload costruito dal servizio.',
     status: 'ok',
     lines: [
       { label: 'client', value: input.producerKind === 'fun' ? 'browser · scheda KS_194_02' : 'client web o servizio esterno' },
@@ -604,7 +604,7 @@ export function runScenario(input: RunInput, catalog: Catalog): RunResult {
         : 'Un servizio con SDK pubblica l’evento',
     detail:
       input.producerKind === 'fun'
-        ? 'La scheda chiama PUB.EVT sul micro esecutore indicato dal registry: nessun JSON libero, il payload è costruito dalla FUN.'
+        ? 'La scheda chiama PUB.EVT sul microexecutor indicato dal registry: nessun JSON libero, il payload è costruito dalla FUN.'
         : 'Il servizio istanzia SmeupBusinessEvent e chiama EventProducer.publish: nessuna FUN di mezzo, nessun registry.',
     status: data.error ? 'warn' : 'ok',
     lines: [
@@ -842,7 +842,7 @@ export function runScenario(input: RunInput, catalog: Catalog): RunResult {
       title: o.type === 'FUN' ? chiamata : `${o.type} · ${chiamata}`,
       detail: o.fired
         ? o.type === 'FUN'
-          ? `Una chiamata asincrona verso l’URL del micro esecutore scelto dal registry, con il contesto dell’evento: la FUN gira con le autorizzazioni dell’utente che ha pubblicato. Nessun risultato torna al chiamante.`
+          ? `Una chiamata asincrona verso l’URL del microexecutor scelto dal registry, con il contesto dell’evento: la FUN gira con le autorizzazioni dell’utente che ha pubblicato. Nessun risultato torna al chiamante.`
           : `L’observer è di tipo ${o.type}: stessa chiamata asincrona, ma il bersaglio lo serve un altro componente della piattaforma.`
         : 'La condizione di questa sezione è falsa: l’observer resta dichiarato nello script ma non viene chiamato. Non è un errore e non è un guasto — nessun NACK, nessun requeue, il giro continua per gli altri observer.',
       status: o.fired ? 'ok' : 'skip',

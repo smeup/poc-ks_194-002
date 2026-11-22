@@ -330,14 +330,14 @@ describe('Observer aggiunti a mano', () => {
 
 describe('Chi esegue le chiamate', () => {
   it('LOG, AUDIT, PGM, K11 e le FUN su servizi KS_ vanno su me-java-rpgle-std', () => {
-    expect(microEsecutorePer('LOG', 'log del micro esecutore')).toBe('handler-std')
+    expect(microEsecutorePer('LOG', 'log del microexecutor')).toBe('handler-std')
     expect(microEsecutorePer('AUDIT', 'WRI.AUD')).toBe('handler-std')
     expect(microEsecutorePer('PGM', 'PGMREC')).toBe('handler-std')
     expect(microEsecutorePer('K11', 'PRO.MSG')).toBe('handler-std')
     expect(microEsecutorePer('FUN', 'F(EXB;KS_191_99;HND.FAT) INPUT(PAR(&event.object))')).toBe(
       'handler-std',
     )
-    // le altre FUN le serve il micro esecutore del loro servizio
+    // le altre FUN le serve il microexecutor del loro servizio
     expect(microEsecutorePer('FUN', 'F(EXB;EV_224_01A;APR.REQ) 1(CO;SPNOT;20260417)')).toBe(
       'handler-servizio',
     )

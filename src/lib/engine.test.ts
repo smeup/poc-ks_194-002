@@ -265,7 +265,7 @@ describe('il percorso di un evento', () => {
     expect(result.verdict.tone).toBe('ok')
   })
 
-  it('parte dal client e ogni passo sa a quale micro esecutore appartiene', () => {
+  it('parte dal client e ogni passo sa a quale microexecutor appartiene', () => {
     const result = run(expense, 0)
     expect(result.steps[0].id).toBe('client')
     expect(result.steps[0].n).toBe(0)

@@ -9,7 +9,7 @@ type Props = {
   steps: Step[]
   revealed: number
   onRevealAll: () => void
-  /** il nome vero del micro esecutore per ogni corsia: cambia con l'evento e con chi pubblica */
+  /** il nome vero del microexecutor per ogni corsia: cambia con l'evento e con chi pubblica */
   nomi: Partial<Record<Componente, string>>
 }
 
@@ -32,7 +32,7 @@ type CorsiaDef = {
   bordo: string
 }
 
-/** Ogni blocco appartiene a un pezzo di piattaforma; l'SDK sta dentro ogni micro esecutore. */
+/** Ogni blocco appartiene a un pezzo di piattaforma; l'SDK sta dentro ogni microexecutor. */
 const CORSIE: Record<Componente, CorsiaDef> = {
   client: {
     breve: 'Client web',
@@ -45,7 +45,7 @@ const CORSIE: Record<Componente, CorsiaDef> = {
   },
   produttore: {
     breve: 'Produttore',
-    titolo: 'Micro esecutore · produttore',
+    titolo: 'Microexecutor · produttore',
     sottotitolo: 'la FUN (KS_194_02A) o il servizio che costruisce e pubblica l’evento',
     icona: Server,
     sdk: true,
@@ -82,8 +82,8 @@ const CORSIE: Record<Componente, CorsiaDef> = {
   },
   'handler-servizio': {
     breve: 'me-xxx-zzz',
-    titolo: 'Micro esecutore del servizio',
-    sottotitolo: 'le FUN che non sono servizi KS_… le serve il micro esecutore del loro servizio',
+    titolo: 'Microexecutor del servizio',
+    sottotitolo: 'le FUN che non sono servizi KS_… le serve il microexecutor del loro servizio',
     icona: Cog,
     sdk: true,
     tinta: 'bg-brand-info-100/25',
@@ -325,7 +325,7 @@ export default function Catena({ steps, revealed, onRevealAll, nomi }: Props) {
       </div>
 
       <p className="text-[11px] leading-snug text-tenue">
-        I blocchi sono raggruppati per componente: in ogni micro esecutore c’è l’SDK, quindi non è un
+        I blocchi sono raggruppati per componente: in ogni microexecutor c’è l’SDK, quindi non è un
         blocco a sé. Il broker ha due consumatori: l’observer manager, che legge lo script, e il
         processo con la cattura, che preleva la sua copia e non guarda lo script. Dopo la
         valutazione delle condizioni le frecce <span className="font-semibold">si aprono</span>: c’è

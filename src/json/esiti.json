@@ -56,7 +56,7 @@
         "il resto del percorso non distingue le due origini"
       ],
       "notHappens": [
-        "un evento pubblicato da SDK non passa dal registry: nessuno gli dice quale micro esecutore lo servirà, decide l’exchange",
+        "un evento pubblicato da SDK non passa dal registry: nessuno gli dice quale microexecutor lo servirà, decide l’exchange",
         "PUB.JSN non accetta un utente nel JSON: lo sovrascrive sempre con l’identità autenticata"
       ],
       "ok": [
@@ -167,7 +167,7 @@
         "l'evento ha priorita 5: viaggia sulla coda alta perché la linea deve partire subito"
       ],
       "notHappens": [
-        "il repository degli eventi non fa fan-out sui micro esecutori: quella è la mappa del dispatcher",
+        "il repository degli eventi non fa fan-out sui microexecutor: quella è la mappa del dispatcher",
         "se a37-service non risponde, l'evento è comunque ackato: il terminale non riceve nulla e nessuno lo segnala al pubblicatore"
       ],
       "ok": [

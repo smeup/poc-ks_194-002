@@ -23,8 +23,8 @@ Sotto ci sono le due cartelle degli **observer**: gli script dichiarati in `SCP_
 sezione evidenziata, oppure il codice che registra la cattura.
 
 Da lì il pulsante **Simula l'evento** fa partire la catena: una mappa a bande, una per
-componente della piattaforma (client web, micro esecutore che pubblica, RabbitMQ, observer
-manager con accanto il processo che ha la cattura, micro esecutore dell'observer), con la
+componente della piattaforma (client web, microexecutor che pubblica, RabbitMQ, observer
+manager con accanto il processo che ha la cattura, microexecutor dell'observer), con la
 legenda dei componenti sopra la mappa. Il broker ha due consumatori: l'observer manager legge
 `SCP_K21`, la cattura preleva la sua copia e non guarda lo script. Dopo la valutazione delle
 condizioni le frecce si aprono: un passo 9 per ogni observer con la condizione vera, tutti in

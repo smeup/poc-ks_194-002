@@ -66,7 +66,7 @@ export default function Percorso({
     [catalog, event],
   )
 
-  // il nome vero del micro esecutore in ogni corsia: chi pubblica cambia, chi consuma no
+  // il nome vero del microexecutor in ogni corsia: chi pubblica cambia, chi consuma no
   const nomiMicro = useMemo(
     () => ({
       client: 'client web',
