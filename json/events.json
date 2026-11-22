@@ -96,7 +96,7 @@
     {
       "id": "me-java-rpgle-std",
       "title": "me-java-rpgle-std",
-      "role": "interprete delle schede e delle FUN chiamate dagli ascoltatori",
+      "role": "interprete delle schede e delle FUN chiamate dagli observer",
       "knows": "le librerie montate e i servizi del registry che gli competono"
     },
     {
@@ -109,7 +109,7 @@
       "id": "broker",
       "title": "RabbitMQ",
       "role": "exchange topic, code, routing key",
-      "knows": "i binding: non conosce gli ascoltatori"
+      "knows": "i binding: non conosce gli observer"
     },
     {
       "id": "libraries",
@@ -170,12 +170,17 @@
         "library": "SCP_K21",
         "file": "EXPENSE_REPORT_SUBMITTED.k21",
         "text": [
+          "* SCP_K21/EXPENSE_REPORT_SUBMITTED.k21 — Nota spese: Nota spese presentata",
+          "* ogni ::SEZ è un observer; il commento sopra dice cosa fa quella sezione",
           "::SEZ Type=\"FUN\"",
+          "* aprire la richiesta di approvazione al responsabile",
           "::OBS Fun=\"F(EXB;EV_224_01A;APR.REQ) 1(CO;SPNOT;&event.object) P(&event.data)\"",
           "::CND Esp=\"&event.object.IMPORTO > 500\"",
           "::SEZ Type=\"FUN\"",
+          "* mandare la copia al buyer di competenza",
           "::OBS Fun=\"F(EXB;PO_101_01;SND.BUY) 1(CO;SPNOT;&event.object)\"",
-          "::SEZ Type=\"AUDIT\""
+          "::SEZ Type=\"AUDIT\"",
+          "* scrivere la riga di audit dell'evento"
         ]
       },
       "observers": [
@@ -260,11 +265,15 @@
         "library": "SCP_K21",
         "file": "PLATE_RECOGNIZED.k21",
         "text": [
+          "* SCP_K21/PLATE_RECOGNIZED.k21 — Cancello automatico: Targa riconosciuta al cancello",
+          "* ogni ::SEZ è un observer; il commento sopra dice cosa fa quella sezione",
           "::SEZ Type=\"FUN\"",
+          "* avvisare la reception che l'auto è entrata",
           "::OBS Fun=\"F(EXB;VT_310_01;NOTIFY.RCP) 1(CO;AUTAR;&event.object)\"",
           "::CND Esp=\"&event.object.AUTORIZZATO == S\"",
           "::SEZ Type=\"LOG\"",
-          "::OBS LogLevel=\"INFO\""
+          "* lasciare traccia della lettura",
+          "::OBS LogLevel=\"INFO\" Message=\"&event.data\""
         ]
       },
       "observers": [
@@ -352,9 +361,13 @@
         "library": "SCP_K21",
         "file": "PASSIVE_INVOICE_RECEIVED.k21",
         "text": [
+          "* SCP_K21/PASSIVE_INVOICE_RECEIVED.k21 — Fattura passiva: Fattura passiva ricevuta",
+          "* ogni ::SEZ è un observer; il commento sopra dice cosa fa quella sezione",
           "::SEZ Type=\"FUN\"",
+          "* contabilizzare la fattura nel ciclo passivo",
           "::OBS Fun=\"F(EXB;FA_268_01;INV.VAL) 1(CO;FAPAS;&event.object) P(&event.data)\"",
           "::SEZ Type=\"PGM\"",
+          "* mandare al programma RPG la registrazione nel partitario",
           "::OBS Pgm=\"PGMREC\"",
           "::CND Esp=\"&event.object.TOTALE > 1000\"",
           "::OBS SubA38=\"REC.FAT\""
@@ -389,7 +402,7 @@
       "okevt": "OK;EVT;INVOICE_ARCHIVED",
       "useCase": "Fattura passiva",
       "title": "Fattura archiviata (nessuno la ascolta)",
-      "summary": "Lo stesso collector pubblica un secondo evento, per l'archiviazione. Non esiste alcuno script SCP_K21 che lo nomini: qui si vede cosa fa il motore quando l'evento non ha ascoltatori.",
+      "summary": "Lo stesso collector pubblica un secondo evento, per l'archiviazione. Non esiste alcuno script SCP_K21 che lo nomini: qui si vede cosa fa il motore quando l'evento non ha observer.",
       "producer": {
         "kind": "sdk",
         "label": "SDK EventProducer",
@@ -479,12 +492,17 @@
         "library": "SCP_K21",
         "file": "SALES_ORDER_CONFIRMED.k21",
         "text": [
+          "* SCP_K21/SALES_ORDER_CONFIRMED.k21 — Vendite: Ordine di vendita confermato",
+          "* ogni ::SEZ è un observer; il commento sopra dice cosa fa quella sezione",
           "::SEZ Type=\"FUN\"",
+          "* riservare la scorta per gli ordini sopra i 5.000 €",
           "::OBS Fun=\"F(EXB;VT_102_01;RES.INV) 1(CO;ORVEN;&event.object) P(&event.data)\"",
           "::CND Esp=\"&event.object.IMPORTO > 5000\"",
           "::SEZ Type=\"FUN\"",
+          "* mandare la conferma d'ordine al cliente",
           "::OBS Fun=\"F(EXB;VT_201_01;SND.CNF) 1(CO;ORVEN;&event.object)\"",
-          "::SEZ Type=\"AUDIT\""
+          "::SEZ Type=\"AUDIT\"",
+          "* tracciare la conferma"
         ]
       },
       "observers": [
@@ -567,13 +585,18 @@
         "library": "SCP_K21",
         "file": "PURCHASE_REQUEST_CREATED.k21",
         "text": [
+          "* SCP_K21/PURCHASE_REQUEST_CREATED.k21 — Acquisti: Richiesta di acquisto creata",
+          "* ogni ::SEZ è un observer; il commento sopra dice cosa fa quella sezione",
           "::SEZ Type=\"FUN\"",
+          "* approvazione del responsabile di reparto",
           "::OBS Fun=\"F(EXB;AC_110_01;APR.REQ) 1(CO;ACRDA;&event.object)\"",
           "::CND Esp=\"&event.object.IMPORTO > 10000\"",
           "::SEZ Type=\"FUN\"",
+          "* approvazione della direzione",
           "::OBS Fun=\"F(EXB;AC_110_02;APR.DIR) 1(CO;ACRDA;&event.object)\"",
           "::CND Esp=\"&event.object.IMPORTO > 100000\"",
           "::SEZ Type=\"PGM\"",
+          "* creare l'ordine fornitore in bozza",
           "::OBS Pgm=\"PGMORD\""
         ]
       },
@@ -592,7 +615,7 @@
           "target": "F(EXB;AC_110_02;APR.DIR)",
           "condition": "&event.object.IMPORTO > 100000",
           "goal": "approvazione della direzione",
-          "note": "seconda soglia, secondo ascoltatore: due sezioni nello stesso file, due chiamate indipendenti"
+          "note": "seconda soglia, secondo observer: due sezioni nello stesso file, due chiamate indipendenti"
         },
         {
           "id": "PURCHASE_REQUEST_CREATED#3",
@@ -659,11 +682,15 @@
         "library": "SCP_K21",
         "file": "STOCK_BELOW_REORDER.k21",
         "text": [
+          "* SCP_K21/STOCK_BELOW_REORDER.k21 — Magazzino: Articolo sotto scorta",
+          "* ogni ::SEZ è un observer; il commento sopra dice cosa fa quella sezione",
           "::SEZ Type=\"FUN\"",
+          "* proporre il riordino al buyer",
           "::OBS Fun=\"F(EXB;MA_310_01;REQ.ORD) 1(MB;AR;ART;00045673)\"",
           "::CND Esp=\"&event.object.DISPONIBILE < 10\"",
           "::SEZ Type=\"LOG\"",
-          "::OBS LogLevel=\"WARN\""
+          "* lasciare traccia nel log con livello WARN",
+          "::OBS LogLevel=\"WARN\" Message=\"&event.data\""
         ]
       },
       "observers": [
@@ -750,9 +777,13 @@
         "library": "SCP_K21",
         "file": "SHIPMENT_DISPATCHED.k21",
         "text": [
+          "* SCP_K21/SHIPMENT_DISPATCHED.k21 — Logistica: Spedizione partita",
+          "* ogni ::SEZ è un observer; il commento sopra dice cosa fa quella sezione",
           "::SEZ Type=\"FUN\"",
+          "* mandare al cliente il link di tracciamento",
           "::OBS Fun=\"F(EXB;LG_140_01;SND.TRK) 1(CO;DODDT;&event.object) P(&event.data)\"",
-          "::SEZ Type=\"AUDIT\""
+          "::SEZ Type=\"AUDIT\"",
+          "* tracciare l'uscita merce"
         ]
       },
       "observers": [
@@ -829,9 +860,13 @@
         "library": "SCP_K21",
         "file": "PAYMENT_RECEIVED.k21",
         "text": [
+          "* SCP_K21/PAYMENT_RECEIVED.k21 — Amministrazione: Incasso ricevuto",
+          "* ogni ::SEZ è un observer; il commento sopra dice cosa fa quella sezione",
           "::SEZ Type=\"FUN\"",
+          "* riconciliare l'incasso con la fattura aperta",
           "::OBS Fun=\"F(EXB;EF_220_01;REC.INC) 1(CO;FIINC;&event.object) P(&event.data)\"",
           "::SEZ Type=\"PGM\"",
+          "* registrare il movimento nel partitario",
           "::OBS Pgm=\"PGMPAR\"",
           "::CND Esp=\"&event.object.IMPORTO > 1000\""
         ]
@@ -865,7 +900,7 @@
       "okevt": "OK;EVT;PRODUCTION_ORDER_RELEASED",
       "useCase": "Produzione",
       "title": "Ordine di produzione rilasciato",
-      "summary": "Priorità alta: il materiale va prelevato e il terminale di reparto deve saperlo subito. L'ascoltatore a37 è dichiarato come K11 nello stesso script.",
+      "summary": "Priorità alta: il materiale va prelevato e il terminale di reparto deve saperlo subito. L'observer a37 è dichiarato come K11 nello stesso script.",
       "producer": {
         "kind": "fun",
         "label": "FUN PUB.EVT",
@@ -910,10 +945,14 @@
         "library": "SCP_K21",
         "file": "PRODUCTION_ORDER_RELEASED.k21",
         "text": [
+          "* SCP_K21/PRODUCTION_ORDER_RELEASED.k21 — Produzione: Ordine di produzione rilasciato",
+          "* ogni ::SEZ è un observer; il commento sopra dice cosa fa quella sezione",
           "::SEZ Type=\"FUN\"",
+          "* preparare il prelievo materiali",
           "::OBS Fun=\"F(EXB;PR_410_01;PICK.MAT) 1(CO;PROPR;&event.object)\"",
           "::CND Esp=\"&event.object.QUANTITA > 100\"",
           "::SEZ Type=\"K11\"",
+          "* mandare il messaggio al terminale di reparto",
           "::OBS SubA38=\"PRO.MSG\"",
           "::OBS VarA38=\"&event.object\""
         ]
@@ -930,10 +969,10 @@
         {
           "id": "PRODUCTION_ORDER_RELEASED#2",
           "type": "K11",
-          "target": "SubA38 PRO.MSG",
+          "target": "PRO.MSG",
           "condition": null,
           "goal": "mandare il messaggio al terminale di reparto",
-          "note": "l'ascoltatore a37: ::OBS SubA38= e ::OBS VarA38=, instradato da a37-service e non da me-java-batch"
+          "note": "l'observer a37: ::OBS SubA38= (il codice SE.SUB) e ::OBS VarA38=, instradato da a37-service e non da me-java-batch"
         }
       ],
       "captures": [],
@@ -989,11 +1028,15 @@
         "library": "SCP_K21",
         "file": "TICKET_OPENED.k21",
         "text": [
+          "* SCP_K21/TICKET_OPENED.k21 — Assistenza: Ticket di assistenza aperto",
+          "* ogni ::SEZ è un observer; il commento sopra dice cosa fa quella sezione",
           "::SEZ Type=\"FUN\"",
+          "* assegnare subito il ticket al tecnico di zona",
           "::OBS Fun=\"F(EXB;AS_120_01;ASSIGN) 1(CO;ASTIC;&event.object)\"",
           "::CND Esp=\"&event.object.PRIORITA >= 2\"",
           "::SEZ Type=\"LOG\"",
-          "::OBS LogLevel=\"INFO\""
+          "* traccia di ogni apertura",
+          "::OBS LogLevel=\"INFO\" Message=\"&event.data\""
         ]
       },
       "observers": [
@@ -1035,7 +1078,7 @@
       "okevt": "OK;EVT;EMPLOYEE_HIRED",
       "useCase": "Personale",
       "title": "Nuova assunzione",
-      "summary": "Il giorno in cui parte un contratto l'evento fa scattare il provisioning delle utenze: un ascoltatore, nessuna condizione, e il campo source dice che l'ha pubblicato una FUN.",
+      "summary": "Il giorno in cui parte un contratto l'evento fa scattare il provisioning delle utenze: un observer, nessuna condizione, e il campo source dice che l'ha pubblicato una FUN.",
       "producer": {
         "kind": "fun",
         "label": "FUN PUB.EVT",
@@ -1078,10 +1121,14 @@
         "library": "SCP_K21",
         "file": "EMPLOYEE_HIRED.k21",
         "text": [
+          "* SCP_K21/EMPLOYEE_HIRED.k21 — Personale: Nuova assunzione",
+          "* ogni ::SEZ è un observer; il commento sopra dice cosa fa quella sezione",
           "::SEZ Type=\"FUN\"",
+          "* creare l'utenza e i gruppi dell'identity provider",
           "::OBS Fun=\"F(EXB;HR_010_01;PROV.USR) 1(CO;DIDIP;&event.object) P(&event.data)\"",
           "::SEZ Type=\"LOG\"",
-          "::OBS LogLevel=\"INFO\""
+          "* traccia dell'assunzione",
+          "::OBS LogLevel=\"INFO\" Message=\"&event.data\""
         ]
       },
       "observers": [
